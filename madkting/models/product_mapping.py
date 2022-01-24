@@ -143,18 +143,21 @@ class ProductYujuMapping(models.Model):
 
 class YujuMappingModel(models.Model):
     _name = "yuju.mapping.model"
+    _description = 'Yuju Mapping Model'
 
     name = fields.Char('Modelo Mapeo')
     code = fields.Char('Codigo')
 
 class YujuMappingField(models.Model):
     _name = "yuju.mapping.field"
+    _description = 'Yuju Mapping Fields'
 
     name = fields.Char('Yuju Field')
     field = fields.Char('Odoo Field')
     default_value = fields.Char('Odoo Field Default Value')
     fieldtype = fields.Selection([('integer', 'Numerico'), ('char', 'Cadena'), ('relation', 'Relacional')], 'Odoo Field Type')
     model = fields.Many2one('yuju.mapping.model', 'Modelo Mapeo')
+    field_values = fields.One2many('yuju.mapping.field.value', 'field_id', 'Valores campos')
 
     @api.model
     def update_mapping_fields(self, record_data, modelo):
@@ -185,7 +188,45 @@ class YujuMappingField(models.Model):
 
 class YujuMappingFieldValue(models.Model):
     _name = "yuju.mapping.field.value"
+    _description = 'Yuju Mapping Fields Values'
 
     name = fields.Char('Yuju Value')
     value = fields.Char('Odoo Value')
     field_id = fields.Many2one('yuju.mapping.field', 'Odoo Field')
+
+
+class YujuMappingCustom(models.Model):
+    _name = "yuju.mapping.custom"
+    _description = 'Yuju Mapping Custom Orders'
+
+    name = fields.Char('Campo')
+    value = fields.Char('Valor por defecto')
+    custom_values = fields.One2many('yuju.mapping.custom.value', 'custom_id', 'Valores custom')
+
+    @api.model
+    def update_custom_values(self, fulfillment, channel_id):        
+        custom_data = {}
+        mapping_custom = self.search([])
+        if mapping_custom.ids:
+            logger.debug("## Custom 1")
+            for el in mapping_custom:
+                custom_field = el.name
+                custom_default = el.value
+                rule_found = False
+                for custom_v in el.custom_values:
+                    if custom_v.channel_id == str(channel_id) and custom_v.ff_type == str(fulfillment):
+                        custom_data.update({custom_field : custom_v.name})
+                        rule_found = True
+                        break
+                if not rule_found:
+                    custom_data.update({custom_field : custom_default})
+        return custom_data
+    
+class YujuMappingCustomValue(models.Model):
+    _name = "yuju.mapping.custom.value"
+    _description = 'Yuju Mapping Custom Values'
+
+    name = fields.Char('Valor Custom')
+    channel_id = fields.Char('Channel Id')
+    ff_type = fields.Char('FF Type')
+    custom_id = fields.Many2one('yuju.mapping.custom', 'Campo custom')

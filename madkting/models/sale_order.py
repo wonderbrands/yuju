@@ -19,6 +19,7 @@ class SaleOrder(models.Model):
     yuju_shop_id = fields.Integer('Yuju Shop Id')
     yuju_pack_id = fields.Char('Yuju Pack Id')
     yuju_marketplace_fee = fields.Float("Marketplace Fee")
+    yuju_seller_shipping_cost = fields.Float("Seller Shipping Cost")
     fulfillment = fields.Selection([
         ('fbf', 'Flex'),
         ('fbm', 'Seller'),
@@ -31,6 +32,12 @@ class SaleOrder(models.Model):
     order_progress = fields.Char('Order Progress')
     payment_status = fields.Char('Payment Status')
     payment_id = fields.Integer('Pago Id')
+
+    def _update_custom_values(self, fulfillment, channel_id):
+        logger.debug("## CUSTOM VALUES FOR ORDERS ##")
+        customs = self.env['yuju.mapping.custom'].update_custom_values(fulfillment, channel_id)
+        logger.debug(customs)
+        return customs
 
     @api.model
     def mdk_create(self, order_data, **kwargs):
@@ -181,6 +188,15 @@ class SaleOrder(models.Model):
         # if config.orders_unconfirmed:
         #     order_data.update({'state' : 'draft'})
 
+        if order_data.get('fulfillment') and order_data.get('channel_id'):
+            fulfillment = order_data.get('fulfillment')
+            channel_id = order_data.get('channel_id')
+            custom_data = self._update_custom_values(fulfillment, channel_id)
+            if custom_data:
+                logger.debug("## ORDER DATA CUSTOM ###")
+                order_data.update(custom_data)
+                logger.debug(order_data)
+
         try:
             new_sale = self.create(order_data)
 
@@ -220,11 +236,12 @@ class SaleOrder(models.Model):
                 line['order_id'] = new_sale.id
                 line['state'] = 'draft'
 
+                product = self.env['product.product'].search([('id', '=', int(line.get('product_id')))], limit=1)
+
                 if config.dropship_enabled and new_sale.warehouse_id.dropship_enabled:
                     route = config.dropship_default_route_id
                     logger.debug("## AGREGAR RUTA DROPSHIP ###")
                     logger.debug("## RUTA: {} ###".format(route.name))
-                    product = self.env['product.product'].search([('id', '=', int(line.get('product_id')))], limit=1)
                     if product.id and product.type == 'product':
                         logger.debug("## ID RUTA: {}".format(route.id))
                         location_stock = new_sale.warehouse_id.lot_stock_id
@@ -240,6 +257,12 @@ class SaleOrder(models.Model):
 
                 # if config.orders_unconfirmed:
                 #     line.update({'state' : 'draft'})
+                
+                # YUJU envia la UDM Pieza(s) Id:1, lo cual genera un problema con 
+                # productos que manejan otras unidades de medida.
+                line_product_uom_id = int(line.get('product_uom'))
+                if product.uom_id.id != line_product_uom_id:
+                    line['product_uom'] = product.uom_id.id
 
                 try:
                     logger.debug(line)
@@ -733,7 +756,7 @@ class SaleOrder(models.Model):
             invoice.ensure_one()
 
             # Update invoice_payment_state instead state on Odoo V13
-            if invoice.invoice_payment_state == 'paid':
+            if invoice.payment_state == 'paid':
                 return results.error_result(code='already_paid',
                                             description='invoice already paid')
 
@@ -779,8 +802,8 @@ class SaleOrder(models.Model):
             if sale:
                 payment = payment_model.create({'amount': sale.amount_total,
                                                 'partner_id' : sale.partner_id.id,
-                                                'communication' : sale.name,
-                                                'payment_date': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+                                                'ref' : sale.name,
+                                                'date': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
                                                 'payment_type': 'inbound',
                                                 'payment_method_id': payment_method_id,
                                                 'journal_id': journal_id,
@@ -788,8 +811,8 @@ class SaleOrder(models.Model):
             else:
                 payment = payment_model.create({'amount': invoice.amount_total,
                                                 'partner_id' : invoice.partner_id.id,
-                                                'communication' : invoice.invoice_origin,
-                                                'payment_date': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+                                                'ref' : invoice.invoice_origin,
+                                                'date': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
                                                 'payment_type': 'inbound',
                                                 'payment_method_id': payment_method_id,
                                                 'journal_id': journal_id,

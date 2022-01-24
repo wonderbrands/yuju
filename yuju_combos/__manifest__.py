@@ -1,36 +1,32 @@
 # -*- coding: utf-8 -*-
 {
-    'name': "Yuju",
+    'name': "Yuju Combos",
 
     'summary': """
-        Integration with Yuju's platform""",
+        Kit products""",
 
     'description': """
-        Module integration with Yuju's software platform.
-        - Create orders into your odoo software from marketplaces like Mercado Libre, Amazon, etc..
-        - Create products from Yuju platform into odoo
-        - Update your stock from odoo to your Yuju account.
+        Module Kit products
     """,
 
     'author': "Gerardo A Lopez Vega @glopzvega",
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '0.0.3',
+    'version': '0.0.1',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
     'depends': [
-        'base',
-        'sale_management',
-        'stock',
-        'component_event'
+        'madkting',
+        'mrp'
     ],
     # always loaded
     'data': [
-        'security/security.xml',
+        # 'security/security.xml',
         'security/ir.model.access.csv',
-        'views/views.xml',
+        'views/product_view.xml',
+        'views/config_view.xml',
         # 'views/templates.xml',
     ],
     # only loaded in demonstration mode
@@ -50,10 +46,3 @@
         "views/**/*",  # exclude all files in a folder hierarchy recursively
     ]
 }
-
-# Version 0.0.2
-# *** Agrega validacion para buscar rfc cliente antes de crearlo.
-
-# Version 0.0.3
-# *** Agrega logs para debug y agrega los campos type y detailed_type en el metodo
-#  de validacion de campos en la actualizacion de productos

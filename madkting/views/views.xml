@@ -65,6 +65,7 @@
             <group>
               <field name="stock_quant_available_quantity_enabled"/>
               <field name="stock_source"/>
+              <field name="validate_partner_exists"/>              
               <field name="webhook_stock_enabled"/>
               <field name="dropship_enabled"/>
               <field name="dropship_picking_type" attrs="{'required' : [('dropship_enabled', '=', True)]}"/>
@@ -224,6 +225,16 @@
               <field name="fieldtype"/>          
             </group>
           </group>
+          <notebook>
+            <page string="Valores">
+              <field name="field_values">
+                <tree editable="bottom">
+                  <field name="name" />
+                  <field name="value" />
+                </tree>
+              </field>
+            </page>
+          </notebook>
         </form>
       </field>
     </record>
@@ -260,6 +271,47 @@
       </field>
     </record>
 
+    <record model="ir.ui.view" id="madkting.yuju_mapping_custom">
+      <field name="name">yuju.mapping.custom.tree.view</field>
+      <field name="model">yuju.mapping.custom</field>
+      <field name="type">tree</field>
+      <field name="arch" type="xml">
+        <tree string="Yuju Mapping Custom">
+          <field name="name"/>         
+          <field name="value"/>         
+        </tree>
+      </field>
+    </record>
+
+    <record model="ir.ui.view" id="madkting.yuju_mapping_custom_form">
+      <field name="name">yuju.mapping.custom.form.view</field>
+      <field name="model">yuju.mapping.custom</field>
+      <field name="type">form</field>
+      <field name="arch" type="xml">
+        <form string="Yuju Mapping Custom">
+          <group>
+            <group>
+              <field name="name"/>        
+            </group>
+            <group>
+              <field name="value"/>        
+            </group>
+          </group>
+          <notebook>
+            <page string="Valores">
+              <field name="custom_values">
+                <tree editable="bottom">
+                  <field name="channel_id" />
+                  <field name="ff_type" />
+                  <field name="name" />
+                </tree>
+              </field>
+            </page>
+          </notebook>
+        </form>
+      </field>
+    </record>
+
     <!-- explicit list view definition -->
     <record model="ir.ui.view" id="madkting.sale_list">
       <field name="name">sale.order.tree</field>
@@ -280,7 +332,7 @@
     
     <!-- actions opening views on models -->
     <record id="madkting.action_window" model="ir.actions.act_window">
-      <field name="name">Synchronized Orders</field>
+      <field name="name">Ventas Sincronizadas</field>
       <field name="res_model">sale.order</field>
       <field name="view_id"></field>
       <field name="view_mode">tree,form</field>
@@ -288,51 +340,59 @@
     </record>
 
     <record id="madkting.action_yuju_mapping" model="ir.actions.act_window">
-      <field name="name">Yuju Mapping</field>
+      <field name="name">Mapeo de tiendas</field>
       <field name="res_model">yuju.mapping</field>
       <field name="view_id"></field>
       <field name="view_mode">tree,form</field>
     </record>
 
     <record id="madkting.action_yuju_mapping_product" model="ir.actions.act_window">
-      <field name="name">Yuju Mapping Product</field>
+      <field name="name">Mapeo de productos</field>
       <field name="res_model">yuju.mapping.product</field>
       <field name="view_id"></field>
       <field name="view_mode">tree,form</field>
     </record> 
 
     <record id="madkting.action_yuju_mapping_model" model="ir.actions.act_window">
-      <field name="name">Yuju Mapping Model</field>
+      <field name="name">Modelos Mapeados</field>
       <field name="res_model">yuju.mapping.model</field>
       <field name="view_id"></field>
       <field name="view_mode">tree,form</field>
     </record> 
 
     <record id="madkting.action_yuju_mapping_field" model="ir.actions.act_window">
-      <field name="name">Yuju Mapping Field</field>
+      <field name="name">Mapeo de campos</field>
       <field name="res_model">yuju.mapping.field</field>
       <field name="view_id"></field>
       <field name="view_mode">tree,form</field>
     </record> 
 
     <record id="madkting.action_yuju_mapping_field_value" model="ir.actions.act_window">
-      <field name="name">Yuju Mapping Field Value</field>
+      <field name="name">Valores de Campos mapeados</field>
       <field name="res_model">yuju.mapping.field.value</field>
+      <field name="view_id"></field>
+      <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="madkting.action_yuju_mapping_custom" model="ir.actions.act_window">
+      <field name="name">Campos Custom</field>
+      <field name="res_model">yuju.mapping.custom</field>
       <field name="view_id"></field>
       <field name="view_mode">tree,form</field>
     </record> 
     
     <!-- Top menu item -->
     <menuitem name="Yuju" id="madkting.menu_root"/>
-    <menuitem name="Sales" id="madkting.menu_sale" parent="madkting.menu_root"/>
-    <menuitem name="Synchronized Orders" id="madkting.menu_sale_list" parent="madkting.menu_sale" action="madkting.action_window"/>
+    <menuitem name="Ventas" id="madkting.menu_sale" parent="madkting.menu_root"/>
+    <menuitem name="Ventas Sincronizadas" id="madkting.menu_sale_list" parent="madkting.menu_sale" action="madkting.action_window"/>
     <menuitem name="Config" id="madkting.menu_config" parent="madkting.menu_root" groups="base.group_no_one"/>
-    <menuitem name="Mapping" id="madkting.menu_mapping_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping"/>
-    <menuitem name="Mapping Products" id="madkting.menu_mapping_product_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping_product"/>
-    <menuitem name="Mapping Models" id="madkting.menu_mapping_model_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping_model"/>
-    <menuitem name="Mapping Fields" id="madkting.menu_mapping_field_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping_field"/>
-    <menuitem name="Mapping Fields Values" id="madkting.menu_mapping_field_value_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping_field_value"/>
-    <menuitem name="Configuration Params" id="madkting.menu_madkting_config" parent="madkting.menu_config" action="madkting.action_config_window"/>
+    <menuitem name="Configuracion" id="madkting.menu_madkting_config" parent="madkting.menu_config" action="madkting.action_config_window"/>
+    <menuitem name="Mapeo tiendas" id="madkting.menu_mapping_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping"/>
+    <menuitem name="Mapeo productos" id="madkting.menu_mapping_product_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping_product"/>
+    <!-- <menuitem name="Mapping Models" id="madkting.menu_mapping_model_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping_model"/> -->
+    <menuitem name="Mapeo campos" id="madkting.menu_mapping_field_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping_field"/>
+    <menuitem name="Campos custom ventas" id="madkting.menu_mapping_custom_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping_custom"/>
+    <!-- <menuitem name="Mapeo de campos" id="madkting.menu_mapping_field_value_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping_field_value"/> -->
     <menuitem name="Webhooks" id="madkting.menu_madkting_webhook" parent="madkting.menu_config" action="madkting.action_webhook_window"/>
 
     <record id="view_order_form_inherit" model="ir.ui.view">
@@ -341,15 +401,17 @@
       <field name="inherit_id" ref="sale.view_order_form"/>
       <field name="arch" type="xml">
         <field name="client_order_ref" position="after">
+          <separator string="Yuju"/>
           <field name="channel" attrs="{'readonly':[(1,'=',1)]}"/>
-          <field name="channel_id" attrs="{'readonly':[(1,'=',1)]}"/>
-          <field name="yuju_shop_id" attrs="{'readonly':[(1,'=',1)]}"/>
+          <field name="channel_id" attrs="{'readonly':[(1,'=',1)]}" groups="base.group_no_one"/>
+          <field name="yuju_shop_id" attrs="{'readonly':[(1,'=',1)]}" groups="base.group_no_one"/>
           <field name="yuju_pack_id" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="yuju_marketplace_fee" attrs="{'readonly':[(1,'=',1)]}"/>
+          <field name="yuju_seller_shipping_cost" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="fulfillment" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="channel_order_reference" attrs="{'readonly':[(1,'=',1)]}" />
           <!-- <field name="channel_order_reference" /> -->
-          <field name="payment_id" attrs="{'readonly':[(1,'=',1)]}" />
+          <field name="payment_id" attrs="{'readonly':[(1,'=',1)]}" groups="base.group_no_one"/>
         </field>
       </field>
     </record>

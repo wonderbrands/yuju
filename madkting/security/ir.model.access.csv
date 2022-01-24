@@ -27,8 +27,12 @@ mad_yuju_mapping_product,madkting yuju.mapping.product,model_yuju_mapping_produc
 mad_yuju_mapping_model,madkting yuju.mapping.model,model_yuju_mapping_model,madkting_api_group,1,1,1,1
 mad_yuju_mapping_field,madkting yuju.mapping.field,model_yuju_mapping_field,madkting_api_group,1,1,1,1
 mad_yuju_mapping_field_value,madkting yuju.mapping.field_value,model_yuju_mapping_field_value,madkting_api_group,1,1,1,1
+mad_yuju_mapping_custom,madkting yuju.mapping.custom,model_yuju_mapping_custom,madkting_api_group,1,1,1,1
+mad_yuju_mapping_custom_value,madkting yuju.mapping.custom_value,model_yuju_mapping_custom_value,madkting_api_group,1,1,1,1
 mad_yuju_mapping_users,madkting yuju.mapping.users,model_yuju_mapping,,1,0,0,0
 mad_yuju_mapping_product_users,madkting yuju.mapping.product.users,model_yuju_mapping_product,,1,0,0,0
 mad_yuju_mapping_model_users,madkting yuju.mapping.model.users,model_yuju_mapping_model,,1,0,0,0
 mad_yuju_mapping_field_users,madkting yuju.mapping.field.users,model_yuju_mapping_field,,1,0,0,0
 mad_yuju_mapping_field_value_users,madkting yuju.mapping.field.value.users,model_yuju_mapping_field_value,,1,0,0,0
+mad_yuju_mapping_custom_users,madkting yuju.mapping.custom.users,model_yuju_mapping_custom,,1,0,0,0
+mad_yuju_mapping_custom_value_users,madkting yuju.mapping.custom.value.users,model_yuju_mapping_custom_value,,1,0,0,0

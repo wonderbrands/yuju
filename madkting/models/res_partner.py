@@ -69,6 +69,8 @@ class ResPartner(models.Model):
         }
         :return:
         """
+        config = self.env['madkting.config'].get_config()
+
         defaults = {
             'active': True,
             'customer_rank': 1,
@@ -90,20 +92,31 @@ class ResPartner(models.Model):
 
         logger.debug(customer_data)
 
-        try:
-            country_code = customer_data.pop('country_code', None)
-            customer_data['country_id'] = self._get_country_id(country_code)
-            new_customer = self.create(customer_data)
-        except exceptions.AccessError as err:
-            return results.error_result(
-                code='access_error',
-                description=str(err)
-            )
-        except Exception as ex:
-            return results.error_result(
-                code='create_costumer_error',
-                description='Error trying to create new costumer: {}'.format(ex)
-            )
+        partner_exist = False
+        partner_found = None
+        if config.validate_partner_exists and customer_data.get('vat'):
+            vat_id = customer_data.get('vat')
+            partner_found = self.search([('vat', '=', vat_id)], limit=1)
+            if partner_found.id:
+                partner_exist = True
+        
+        if partner_exist:
+            new_customer = partner_found
+        else:
+            try:
+                country_code = customer_data.pop('country_code', None)
+                customer_data['country_id'] = self._get_country_id(country_code)
+                new_customer = self.create(customer_data)
+            except exceptions.AccessError as err:
+                return results.error_result(
+                    code='access_error',
+                    description=str(err)
+                )
+            except Exception as ex:
+                return results.error_result(
+                    code='create_costumer_error',
+                    description='Error trying to create new costumer: {}'.format(ex)
+                )
         warnings = list()
         for type_, partner in partners.items():
             if not partner:

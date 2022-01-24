@@ -53,6 +53,8 @@ class ProductProduct(models.Model):
                                  'company_id': int,
                                  'standard_price': (float, int),
                                  'attributes': dict,
+                                 'type' : str,
+                                 'detailed_type' : str,
                                  'id_product_madkting': (int, str)}
 
     @api.model
@@ -146,9 +148,9 @@ class ProductProduct(models.Model):
         :return:
         :rtype: dict
         """
-        # logger.debug("### UPDATE PRODUCT ###")
-        # logger.debug(product_data)
-        # logger.debug(id_shop)
+        logger.debug("### UPDATE PRODUCT ###")
+        logger.debug(product_data)
+        logger.debug(id_shop)
         product_id = product_data.pop('id', None)
         if not product_id:
             return results.error_result('missing_product_id',
@@ -256,6 +258,8 @@ class ProductProduct(models.Model):
             # Drop empty barcode because constraint product_product_barcode_uniq
             fields_validation["data"].pop("barcode")
 
+        logger.debug("## Fields validation data")
+        logger.debug(fields_validation['data'])
         try:
             product.write(fields_validation['data'])
             if config and config.update_parent_list_price and fields_validation['data'].get('list_price'):
@@ -310,6 +314,9 @@ class ProductProduct(models.Model):
         if not fields_validation['success']:
             return fields_validation
 
+        logger.debug("## Fields validation")
+        logger.debug(fields_validation)
+
         if variation_data.get('barcode'):
             product_ids = self.search([('barcode', '=', variation_data.get('barcode', ''))], limit=1)
             if product_ids.ids:
@@ -337,6 +344,11 @@ class ProductProduct(models.Model):
 
         current_variations_set = parent.get_variation_sets()
         v_data = fields_validation['data']
+        logger.debug("## Current variation set")
+        logger.debug(current_variations_set)
+
+        logger.debug("## V Data")
+        logger.debug(v_data)
 
         mapping = self.env['yuju.mapping.product']
 
@@ -406,7 +418,8 @@ class ProductProduct(models.Model):
         attribute_line_ids = [
                 (1, a['attribute_line_id'], {'value_ids': [(4, a['value_id'])]}) for a in new_attribute_lines
         ]
-        # logger.debug(attribute_line_ids)
+        logger.debug("## Attribute line ids")
+        logger.debug(attribute_line_ids)
         try:
             parent.product_tmpl_id.write({'attribute_line_ids': attribute_line_ids})
         except Exception as ex:
@@ -415,6 +428,12 @@ class ProductProduct(models.Model):
 
         new_variation_data = None
         v_data = fields_validation['data']
+
+        logger.debug("## New variation data")
+        logger.debug(new_variation_data)
+
+        logger.debug("## V data")
+        logger.debug(v_data)
 
         for variation in parent.product_variant_ids:
             if variant_attributes == variation.get_data().get('attributes'):

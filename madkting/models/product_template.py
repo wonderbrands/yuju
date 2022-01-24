@@ -11,8 +11,6 @@ from ..log.logger import logger
 from ..responses import results
 import psycopg2
 
-# import logging
-# _log = logging.getLogger(__name__)
 
 class ProductTemplate(models.Model):
 
@@ -65,8 +63,8 @@ class ProductTemplate(models.Model):
         :return:
         :rtype: dict
         """
-        # logger.debug("### MDK CREATE PRODUCT DATA ###")
-        # logger.debug(product_data)
+        logger.debug("### MDK CREATE PRODUCT DATA ###")
+        logger.debug(product_data)
         config = self.env['madkting.config'].get_config()
         mapping = self.env['yuju.mapping.product']
         products = self.env['product.product']
@@ -147,6 +145,7 @@ class ProductTemplate(models.Model):
 
         # create a product simple
         if not has_variations:
+            logger.debug("#CREATE PRODUCT SIMPLE")
             if id_shop:
                 id_product_madkting = product_data.get('id_product_madkting')
                 sku_product = product_data.get('default_code')
@@ -261,6 +260,9 @@ class ProductTemplate(models.Model):
 
         product_data['attribute_line_ids'] = product_template_attribute_lines
         product_data.pop('id_product_madkting', None)
+
+        logger.debug("#### VER VARIANTES")
+        logger.debug(product_data)
         
         if id_shop:
             new_template = None            
