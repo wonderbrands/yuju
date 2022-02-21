@@ -19,7 +19,7 @@ def get_results_report():
     }
 
 
-def add_error(code, description=False):
+def add_error(code, description=None):
     """
     :param code:
     :type: str
@@ -31,7 +31,7 @@ def add_error(code, description=False):
     return {'code': code, 'description': description}
 
 
-def error_result(code=False, description=False):
+def error_result(code=None, description=None):
     """
     :param code:
     :type: str

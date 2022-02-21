@@ -1,23 +1,25 @@
 # -*- coding: utf-8 -*-
 {
-    'name': "Yuju",
+    'name': "madkting",
 
     'summary': """
-        Integration with Yuju's platform""",
+        Integration with Madkting platform""",
 
     'description': """
-        Module integration with Yuju's software platform.
+        Module integration with madkting software platform.
         - Create orders into your odoo software from marketplaces like Mercado Libre, Amazon, etc..
-        - Create products from Yuju platform into odoo
-        - Update your stock from odoo to your Yuju account.
+        - Create products from madkting platform into odoo
+        - Update your stock from odoo to your madkting account.
     """,
 
-    'author': "Gerardo A Lopez Vega @glopzvega",
-    'email': "gerardo.lopez@yuju.io",
-    'website': "https://yuju.io/",
+    'author': "Israel Calderón Aguilar",
+    'website': "http://madkting.com/",
+
+    # Categories can be used to filter modules in modules listing
+    # Check https://github.com/odoo/odoo/blob/12.0/odoo/addons/base/data/ir_module_category_data.xml
+    # for the full list
     'category': 'Sales',
-    'version': '0.0.3',
-    'license': 'Other proprietary',
+    'version': '0.2',
 
     # any module necessary for this one to work correctly
     'depends': [
@@ -37,23 +39,4 @@
     'demo': [
         # 'demo/demo.xml',
     ],
-    "cloc_exclude": [
-        # "lib/common.py", # exclude a single file
-        # "data/*.xml",    # exclude all XML files in a specific folder
-        "controllers/**/*",  # exclude all files in a folder hierarchy recursively
-        "log/**/*",  # exclude all files in a folder hierarchy recursively
-        "models/**/*",  # exclude all files in a folder hierarchy recursively
-        "notifier/**/*",  # exclude all files in a folder hierarchy recursively
-        "requirements/**/*",  # exclude all files in a folder hierarchy recursively
-        "responses/**/*",  # exclude all files in a folder hierarchy recursively
-        "security/**/*",  # exclude all files in a folder hierarchy recursively
-        "views/**/*",  # exclude all files in a folder hierarchy recursively
-    ]
 }
-
-# Version 0.0.2
-# *** Agrega validacion para buscar rfc cliente antes de crearlo.
-
-# Version 0.0.3
-# *** Agrega logs para debug y agrega los campos type y detailed_type en el metodo
-#  de validacion de campos en la actualizacion de productos

@@ -11,9 +11,7 @@ Extend the 'base' Odoo Model to add Events related features.
 """
 
 from odoo import api, models
-
 from odoo.addons.component.core import _component_databases
-
 from ..components.event import CollectedEvents
 from ..core import EventWorkContext
 
@@ -33,14 +31,14 @@ class Base(models.AbstractModel):
     ``on_record_unlink`` is notified just *before* the unlink is done.
 
     """
-
-    _inherit = "base"
+    _inherit = 'base'
 
     def _event(self, name, collection=None, components_registry=None):
         """ Collect events for notifications
 
         Usage::
 
+            @api.multi
             def button_do_something(self):
                 for record in self:
                     # do something
@@ -63,7 +61,12 @@ class Base(models.AbstractModel):
 
         """
         dbname = self.env.cr.dbname
-        comp_registry = components_registry or _component_databases.get(dbname)
+        components_registry = self.env.context.get(
+            "components_registry", components_registry
+        )
+        comp_registry = (
+            components_registry or _component_databases.get(dbname)
+        )
         if not comp_registry or not comp_registry.ready:
             # No event should be triggered before the registry has been loaded
             # This is a very special case, when the odoo registry is being
@@ -74,24 +77,19 @@ class Base(models.AbstractModel):
             # during the initialization. Hence we return an empty list of
             # events, the 'notify' calls will do nothing.
             return CollectedEvents([])
-        if not comp_registry.get("base.event.collecter"):
+        if not comp_registry.get('base.event.collecter'):
             return CollectedEvents([])
 
         model_name = self._name
         if collection is not None:
-            work = EventWorkContext(
-                collection=collection,
-                model_name=model_name,
-                components_registry=components_registry,
-            )
+            work = EventWorkContext(collection=collection,
+                                    model_name=model_name,
+                                    components_registry=components_registry)
         else:
-            work = EventWorkContext(
-                env=self.env,
-                model_name=model_name,
-                components_registry=components_registry,
-            )
+            work = EventWorkContext(env=self.env, model_name=model_name,
+                                    components_registry=components_registry)
 
-        collecter = work._component_class_by_name("base.event.collecter")(work)
+        collecter = work._component_class_by_name('base.event.collecter')(work)
         return collecter.collect_events(name)
 
     @api.model_create_multi
@@ -102,15 +100,17 @@ class Base(models.AbstractModel):
             self._event("on_record_create").notify(records[idx], fields=fields)
         return records
 
+    @api.multi
     def write(self, vals):
         result = super(Base, self).write(vals)
         fields = list(vals.keys())
         for record in self:
-            self._event("on_record_write").notify(record, fields=fields)
+            self._event('on_record_write').notify(record, fields=fields)
         return result
 
+    @api.multi
     def unlink(self):
         for record in self:
-            self._event("on_record_unlink").notify(record)
+            self._event('on_record_unlink').notify(record)
         result = super(Base, self).unlink()
         return result

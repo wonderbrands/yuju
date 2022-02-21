@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#from odoo import http
+from odoo import http
 
 # class Madkting(http.Controller):
 #     @http.route('/madkting/madkting/', auth='public')

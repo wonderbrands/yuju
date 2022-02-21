@@ -15,27 +15,10 @@ class MadktingConfig(models.Model):
     _description = 'Config'
 
     stock_quant_available_quantity_enabled = fields.Boolean('Stock Quant Available Qty Enabled', default=False)
-    stock_source = fields.Many2one('stock.location', string="Ubicacion de Stock", domain=[('usage', '=', 'internal')])
     webhook_stock_enabled = fields.Boolean('Stock webhooks enabled', default=False)
-    simple_description_enabled = fields.Boolean('Simple Description product enabled', default=False)
-    update_partner_name = fields.Boolean("Update partner name with order ref")
-    update_partner_name_channel = fields.Char("Channels to update partner name with order ref")
+    update_tracking_ref = fields.Boolean("Update Tracking Ref in Sale Info")
     update_order_name = fields.Boolean("Update Order Name with Channel Ref")
-    update_order_name_pack = fields.Boolean("Update Order Name with Pack")
-    product_custom_fields = fields.Text("Product Custom fields")
-    orders_unconfirmed = fields.Boolean('Order not confirmed', help='Deja las ordenes sin confirmar')
-    update_parent_list_price = fields.Boolean('Update Parent Price', help='Actualiza el precio del producto padre en caso de tener variantes')
 
-    dropship_enabled = fields.Boolean('Dropshiping Enabled')
-    dropship_webhook_enabled = fields.Boolean('Dropshiping Webhook Enabled')
-    dropship_stock_enabled = fields.Boolean('Stock Dropshiping Enabled')
-    dropship_default_route_id = fields.Many2one('stock.location.route', string='Ruta Default para Dropshiping')
-    dropship_route_id = fields.Many2one('stock.location.route', string='Ruta para Dropshiping')
-    dropship_mto_route_id = fields.Many2one('stock.location.route', string='Ruta para MTO')
-    dropship_picking_type = fields.Many2one('stock.picking.type', string='Dropship Picking Type')
-
-    validate_partner_exists = fields.Boolean('Buscar Partner', help="Valida si existe el partner en odoo antes de crearlo")
-    
     @api.model
     def create_config(self, configs):
         """
@@ -108,11 +91,6 @@ class MadktingWebhook(models.Model):
     hook_type = fields.Char('Webhook type', size=20, required=True)
     url = fields.Char('Web hooks url', size=400, required=True)
     active = fields.Boolean('Active', default=True, required=True)
-    company_id = fields.Many2one('res.company', 'Company')
-
-    # _sql_constraints = [
-    #     ('unique_webhook_company', 'unique(hook_type,company_id)', 'The webhook should be unique per company')
-    # ]
 
     @api.model
     def get(self, hook_id=None, hook_type=None):
@@ -153,7 +131,7 @@ class MadktingWebhook(models.Model):
         return results.success_result(data)
 
     @api.model
-    def create_webhook(self, hook_type, url, company_id):
+    def create_webhook(self, hook_type, url):
         """
         :param hook_type:
         :type hook_type: str
@@ -174,8 +152,7 @@ class MadktingWebhook(models.Model):
             webhook = self.create({
                 'hook_type': hook_type,
                 'url': url,
-                'active': True,
-                'company_id' : company_id
+                'active': True
             })
         except Exception as ex:
             logger.exception(ex)
