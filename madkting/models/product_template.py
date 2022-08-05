@@ -118,6 +118,13 @@ class ProductTemplate(models.Model):
                 if product_ids.ids:
                     return results.error_result(code='duplicated_barcode',
                                                 description='El codigo de barras ya esta previamente registrado')
+                else:
+                    product_ids = self.env['product.product'].sudo().search([('barcode', '=', product_data.get('barcode', '')), ('active', '=', False)], limit=1)
+                    logger.debug(product_ids.ids)
+                    if product_ids.ids:
+                        return results.error_result(code='duplicated_barcode',
+                                                description='El codigo de barras ya esta previamente registrado')
+
             else:
                 logger.debug("## DROP EMPTY BARCODE ##")
                 product_data.pop('barcode')

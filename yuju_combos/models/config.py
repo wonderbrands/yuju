@@ -15,3 +15,4 @@ class MadktingConfig(models.Model):
     _description = 'Config'
 
     mrp_route = fields.Many2one('stock.location.route', string='Ruta para Fabricacion')
+    delete_old_bom = fields.Boolean('Eliminar Ldm anterior')

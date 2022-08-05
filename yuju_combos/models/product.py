@@ -82,12 +82,12 @@ class ProductProduct(models.Model):
 
         res = super(ProductProduct, self).update_product(product_data, product_type, id_shop)
 
-        if res['success'] and product_type == 'variation':
+        if res['success']:
             product = self.browse(product_id)
             route_id = config.mrp_route.id
             if is_combo:
                 logger.debug("## Es combo")
-                if product.yuju_kit:
+                if product.yuju_kit and config.delete_old_bom:
                     logger.debug("## Tiene Ldm")
                     try:
                         logger.debug("## Elimina Ldm anterior")
@@ -108,7 +108,7 @@ class ProductProduct(models.Model):
                     product.write({'yuju_kit' : new_bom.id, 'route_ids' : [(4, route_id)]})
             else:
                 logger.debug("## No es combo")
-                if product.yuju_kit:
+                if product.yuju_kit and config.delete_old_bom:
                     logger.debug("## Tiene Ldm")
                     try:
                         logger.debug("## Elimina Ldm anterior")
@@ -117,9 +117,9 @@ class ProductProduct(models.Model):
                         logger.error(e)
                         return results.error_result(code='bom_delete',
                                                         description='Ocurrio un error al eliminar la ldm')
-                    else:
-                        logger.debug("## Actualiza tipo y Ldm en producto")
-                        product.write({'type': 'product', 'route_ids' : [(3, route_id)]})
+                    
+                logger.debug("## Actualiza tipo y Ldm en producto")
+                product.write({'type': 'product', 'route_ids' : [(3, route_id)]})
 
         return res
 

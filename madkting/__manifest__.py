@@ -16,7 +16,7 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '0.0.3',
+    'version': '0.0.4',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
@@ -57,3 +57,6 @@
 # Version 0.0.3
 # *** Agrega logs para debug y agrega los campos type y detailed_type en el metodo
 #  de validacion de campos en la actualizacion de productos
+
+# Version 0.0.4
+# *** Se quitan impuestos por default de la linea de la venta si no se enviaron desde Yuju

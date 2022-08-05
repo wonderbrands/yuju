@@ -7,6 +7,7 @@
             <field name="arch" type="xml">
                 <field name="webhook_stock_enabled" position="after">
                     <field name="mrp_route" />
+                    <field name="delete_old_bom" />
                 </field>
             </field>
         </record>
