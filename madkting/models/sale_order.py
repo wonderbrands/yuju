@@ -17,9 +17,15 @@ class SaleOrder(models.Model):
     channel = fields.Char('Marketplace')
     channel_id = fields.Integer('Channel Id')
     yuju_shop_id = fields.Integer('Yuju Shop Id')
+    
     yuju_pack_id = fields.Char('Yuju Pack Id')
+    yuju_shipping_id = fields.Char('Yuju Shipping Id')
+    yuju_seller_id = fields.Char('Yuju Seller Id')
     yuju_marketplace_fee = fields.Float("Marketplace Fee")
     yuju_seller_shipping_cost = fields.Float("Seller Shipping Cost")
+    yuju_carrier_tracking_ref = fields.Char("Numero de Guia")
+    yuju_update_date_order = fields.Char("Fecha Actualizacion Yuju")
+
     fulfillment = fields.Selection([
         ('fbf', 'Flex'),
         ('fbm', 'Seller'),
@@ -29,6 +35,8 @@ class SaleOrder(models.Model):
     channel_order_id = fields.Char('Marketplace Id')
     channel_order_market_fee = fields.Float('Channel Marketplace Fee')
     channel_order_shipping_cost = fields.Float('Seller Shipping Cost')
+
+
     order_progress = fields.Char('Order Progress')
     payment_status = fields.Char('Payment Status')
     payment_id = fields.Integer('Pago Id')
