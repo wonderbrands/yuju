@@ -171,7 +171,10 @@ class YujuMappingField(models.Model):
                 yuju_field = row.name
                 odoo_field = row.field
                 logger.debug(yuju_field)
-                if yuju_field in record_data:
+
+                mapping_value = row.default_value
+
+                if yuju_field in record_data and yuju_field != 'custom_default':
                     yuju_value = record_data.pop(yuju_field)
                     mapping_value_id = fvalues.search([('field_id', '=', row.id), ('name', '=', yuju_value)], limit=1)
                     if mapping_value_id:
@@ -179,10 +182,10 @@ class YujuMappingField(models.Model):
                     else:
                         mapping_value = row.default_value                        
 
-                    if row.fieldtype in ['integer', 'relation']:
-                        mapping_value = int(mapping_value)
+                if row.fieldtype in ['integer', 'relation']:
+                    mapping_value = int(mapping_value)
                     
-                    record_data.update({odoo_field : mapping_value})
+                record_data.update({odoo_field : mapping_value})
 
         return record_data
 

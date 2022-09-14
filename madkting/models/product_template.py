@@ -442,13 +442,17 @@ class ProductTemplate(models.Model):
         :rtype: dict
         :return:
         """
-        product = self.with_context(active_test=False) \
-                      .search([('id', '=', template_id)])
+        product = self.search([('id', '=', template_id)])
         if not product:
-            return results.error_result(
-                'product_not_found',
-                'The product that you are trying to delete doesn\'t exists or is deleted already'
-            )
+
+            # product = self.with_context(active_test=False) \
+            #     .search([('id', '=', template_id)])
+
+            return results.success_result()
+            # return results.error_result(
+            #     'product_not_found',
+            #     'The product that you are trying to delete doesn\'t exists or is deleted already'
+            # )
         try:
             if id_shop:
                 yuju_mapping = self.env['yuju.mapping'].sudo()

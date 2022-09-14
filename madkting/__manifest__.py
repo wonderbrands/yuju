@@ -16,7 +16,7 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '0.0.4',
+    'version': '0.0.7',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
@@ -60,3 +60,12 @@
 
 # Version 0.0.4
 # *** Se quitan impuestos por default de la linea de la venta si no se enviaron desde Yuju
+
+# Version 0.0.5
+# *** Valida si la orden fue confirmada y no se elimina la orden si no se puede confirmar, se agrega mensaje en el post_message
+
+# Version 0.0.6
+# *** Actualiza campos custom facturas
+
+# Version 0.0.7
+# *** desindexa productos archivados

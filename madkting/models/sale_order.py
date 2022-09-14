@@ -25,6 +25,7 @@ class SaleOrder(models.Model):
     yuju_seller_shipping_cost = fields.Float("Seller Shipping Cost")
     yuju_carrier_tracking_ref = fields.Char("Numero de Guia")
     yuju_update_date_order = fields.Char("Fecha Actualizacion Yuju")
+    yuju_payment_date_order = fields.Char("Fecha Acreditacion Pago")
 
     fulfillment = fields.Selection([
         ('fbf', 'Flex'),
@@ -190,6 +191,15 @@ class SaleOrder(models.Model):
             order_exists = self.search([('channel_order_reference', '=', order_data.get("channel_order_reference"))], limit=1)
             if not force_creation and order_exists:
                 logger.debug("### ORDER EXISTS {} ###".format(order_data.get("channel_order_reference")))
+                
+                if order_exists.state in ['draft', 'sent']:
+                    try:
+                        order_exists.action_confirm()
+                    except Exception as ex:
+                        post_message = 'The sale order counldn\'t be confirmed because of the following exception: {}'.format(ex)
+                        logger.debug(post_message)
+                        order_exists.message_post(body=post_message)
+
                 data=order_exists.yuju_get_data()
                 logger.debug("### RESPONSE MDK CREATE EXISTS ####")
                 logger.debug(data)
@@ -324,18 +334,21 @@ class SaleOrder(models.Model):
                         continue
 
             try:
+                # raise ValueError('Error on process..')
                 if not config.orders_unconfirmed:
                     new_sale.action_confirm()
                 else:
                     logger.debug('orders_unconfirmed, the order should be confirmed manually')
             except Exception as ex:
-                new_sale.unlink()
-                logger.exception(ex)
-                return results.error_result(
-                    code='sale_confirm_error',
-                    description='The sale order counldn\'t be confirmed because of the following exception: {}'.format(ex))
-            else:
-                data=new_sale.yuju_get_data()
+                # new_sale.unlink()
+                post_message = 'The sale order counldn\'t be confirmed because of the following exception: {}'.format(ex)
+                logger.debug(post_message)
+                new_sale.message_post(body=post_message)
+                # return results.error_result(
+                #     code='sale_confirm_error',
+                #     description='The sale order counldn\'t be confirmed because of the following exception: {}'.format(ex))
+            # else:
+            data=new_sale.yuju_get_data()
         # logger.debug("### RESPONSE MDK CREATE ####")
         # logger.debug(data)
         return results.success_result(data)
@@ -395,6 +408,7 @@ class SaleOrder(models.Model):
         :rtype: dict
         """
         order = self.search([('id', '=', order_id)])
+        config = self.env['madkting.config'].get_config()
 
         logger.debug("## UPDATE ORDER ##")
         logger.debug(order_data)
@@ -404,12 +418,25 @@ class SaleOrder(models.Model):
                                         description='order {} doesn\'t exists'.format(order_id))
         order.ensure_one()
         updatable_attributes = ['note', 'partner_shipping_id', 'partner_invoice_id',
-                                'validity_date', 'order_progress']
+                                'validity_date', 'order_progress', 'yuju_update_date_order',
+                                'yuju_carrier_tracking_ref']
+
         updates = {attribute: value for attribute, value in order_data.items() if attribute in updatable_attributes}
 
         if not updates:
             return results.error_result(code='not_valid_data',
                                         description='The attributes you\'re trying to update are invalid')
+
+        if order.state in ['draft', 'sent'] and config and not config.orders_unconfirmed:
+            try:                
+                order.action_confirm()
+            except Exception as ex:
+                return results.error_result(
+                    code='sale_confirm_error',
+                    description='The sale order counldn\'t be confirmed because of the following exception: {}'.format(ex))
+
+        logger.debug("#### UPDATE ORDER ####")
+        logger.debug(updates)
 
         try:
             order.write(updates)
@@ -672,20 +699,26 @@ class SaleOrder(models.Model):
         if not order:
             return results.error_result(code='sale_not_exists',
                                         description='order {} doesn\'t exists'.format(order_id))
+
+        if order.state not in ['sale', 'done']:
+            return results.error_result(code='sale_not_confirmed',
+                                        description='order {} is not confirmed'.format(order_id))
+        
         order.ensure_one()
 
         if order.invoice_ids:
-            invoice = order.invoice_ids
-            invoice.ensure_one()
+            for invoice in order.invoice_ids:
+            # invoice = order.invoice_ids
+            # invoice.ensure_one()
             # if invoice is cancelled skip this and try to create it
-            if invoice.state != 'cancel':
-                if invoice.state not in ['posted', 'paid', 'ready']:                    
-                    invoice.action_post()
-                invoice_data = invoice.copy_data()[0]
-                invoice_data['id'] = invoice.id
-                invoice_data['name'] = invoice.name
-                invoice_data['state'] = invoice.state
-                return results.success_result(data=invoice_data)
+                if invoice.state != 'cancel':
+                    if invoice.state not in ['posted', 'paid', 'ready']:                    
+                        invoice.action_post()
+                    invoice_data = invoice.copy_data()[0]
+                    invoice_data['id'] = invoice.id
+                    invoice_data['name'] = invoice.name
+                    invoice_data['state'] = invoice.state
+                    return results.success_result(data=invoice_data)
 
         try:
             invoice = order.sudo()._create_invoices(grouped=True)
@@ -700,6 +733,12 @@ class SaleOrder(models.Model):
                                         description='The sale order cannot be invoiced because of '
                                                     'the following exception: {}'.format(ex))
         else:
+            
+            update_custom_values = self.env['yuju.mapping.field'].update_mapping_fields({}, 'account.move')
+            if update_custom_values:
+                logger.info(f'Hay campos que actualizar en la factura {update_custom_values}')
+                invoice.write(update_custom_values)
+
             invoice.ensure_one()
             invoice.action_post()
             invoice_data = invoice.copy_data()[0]

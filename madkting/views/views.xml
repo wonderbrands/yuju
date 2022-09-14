@@ -412,6 +412,7 @@
           <field name="yuju_seller_shipping_cost" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="yuju_carrier_tracking_ref" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="yuju_update_date_order" attrs="{'readonly':[(1,'=',1)]}"/>
+          <field name="yuju_payment_date_order" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="fulfillment" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="channel_order_reference" attrs="{'readonly':[(1,'=',1)]}" />
           <!-- <field name="channel_order_reference" /> -->
