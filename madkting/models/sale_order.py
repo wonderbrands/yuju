@@ -36,6 +36,7 @@ class SaleOrder(models.Model):
     channel_order_id = fields.Char('Marketplace Id')
     channel_order_market_fee = fields.Float('Channel Marketplace Fee')
     channel_order_shipping_cost = fields.Float('Seller Shipping Cost')
+    yuju_url_label = fields.Text('Label URL')
 
 
     order_progress = fields.Char('Order Progress')
@@ -419,7 +420,9 @@ class SaleOrder(models.Model):
         order.ensure_one()
         updatable_attributes = ['note', 'partner_shipping_id', 'partner_invoice_id',
                                 'validity_date', 'order_progress', 'yuju_update_date_order',
-                                'yuju_carrier_tracking_ref']
+                                'yuju_payment_date_order', 'yuju_carrier_tracking_ref',
+                                'yuju_url_label'
+                                ]
 
         updates = {attribute: value for attribute, value in order_data.items() if attribute in updatable_attributes}
 

@@ -16,7 +16,7 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '0.0.7',
+    'version': '0.0.8',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
@@ -69,3 +69,6 @@
 
 # Version 0.0.7
 # *** desindexa productos archivados
+
+# Version 0.0.8
+# *** Agrega configuracion para validar barcode

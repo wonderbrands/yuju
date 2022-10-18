@@ -254,20 +254,20 @@ class ProductProduct(models.Model):
         # logger.debug("#### DATA TO WRITE ####")
         # logger.debug(fields_validation['data'])
 
-        if "barcode" in fields_validation["data"]: 
+        if "barcode" in fields_validation["data"] and config.validate_barcode_exists: 
             if fields_validation["data"]["barcode"] == "":
                 # Drop empty barcode because constraint product_product_barcode_uniq
                 fields_validation["data"].pop("barcode")
             else:
                 logger.debug("## SEARCH BARCODE UPDATE ##")
                 barcode = fields_validation["data"]["barcode"]
-                product_ids = self.sudo().search([('barcode', '=', barcode)], limit=1)
+                product_ids = self.sudo().search([('barcode', '=', barcode), ('id', '!=', product_id)], limit=1)
                 logger.debug(product_ids.ids)
                 if product_ids.ids:
                     return results.error_result(code='duplicated_barcode',
                                                 description='El codigo de barras ya esta previamente registrado')
                 else:
-                    product_ids = self.sudo().search([('barcode', '=', barcode), ('active', '=', False)], limit=1)
+                    product_ids = self.sudo().search([('barcode', '=', barcode), ('id', '!=', product_id), ('active', '=', False)], limit=1)
                     logger.debug(product_ids.ids)
                     if product_ids.ids:
                         return results.error_result(code='duplicated_barcode',

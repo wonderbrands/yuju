@@ -111,7 +111,7 @@ class ProductTemplate(models.Model):
             supplier_data = product_data.pop('provider', None)
 
         logger.debug("### SEARCH BARCODE : {} ###".format(product_data.get('barcode')))
-        if 'barcode' in product_data:
+        if 'barcode' in product_data and config.validate_barcode_exists:
             if product_data.get('barcode'):
                 product_ids = self.env['product.product'].sudo().search([('barcode', '=', product_data.get('barcode', ''))], limit=1)
                 logger.debug(product_ids.ids)
