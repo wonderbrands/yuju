@@ -65,7 +65,7 @@ class ProductProduct(models.Model):
         product = self.browse(product_id)
         is_combo = False
 
-        if product_type != 'variation':
+        if product_type != 'variation' and 'type' in product_data:
             product_data.pop('type')
 
         if self._is_combo(product_data):
