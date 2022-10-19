@@ -65,6 +65,7 @@
             <group>
               <field name="stock_quant_available_quantity_enabled"/>
               <field name="stock_source"/>
+              <field name="stock_source_multi"/>
               <field name="validate_partner_exists"/>              
               <field name="webhook_stock_enabled"/>
               <field name="dropship_enabled"/>

@@ -34,6 +34,11 @@ def send_stock_webhook(env, product, company_id, hook_id=None):
             if product.tipo_producto_yuju and qty_in_branch < 1:
                 logger.debug("### NO STOCK ON DROPSHIP WEBHOOK DISABLED ###")
                 return
+    elif config.stock_source_multi:
+        for location_id in config.stock_source_multi.split(','):
+            location = env['stock.location'].search([('id', '=', int(location_id))], limit=1)
+            qty_in_branch = env['stock.quant']._get_available_quantity(product, location)
+            ubicaciones_stock.update({location.id : qty_in_branch})
 
     else:
         for branch_id, stock in product.get_stock_by_location().items():

@@ -16,6 +16,7 @@ class MadktingConfig(models.Model):
 
     stock_quant_available_quantity_enabled = fields.Boolean('Stock Quant Available Qty Enabled', default=False)
     stock_source = fields.Many2one('stock.location', string="Ubicacion de Stock", domain=[('usage', '=', 'internal')])
+    stock_source_multi = fields.Char('Multi Stock Src')
     webhook_stock_enabled = fields.Boolean('Stock webhooks enabled', default=False)
     simple_description_enabled = fields.Boolean('Simple Description product enabled', default=False)
     validate_barcode_exists = fields.Boolean('Validar si el codigo de barras existe', default=True)
