@@ -69,16 +69,18 @@
               <field name="validate_partner_exists"/>              
               <field name="webhook_stock_enabled"/>
               <field name="dropship_enabled"/>
-              <field name="dropship_picking_type" attrs="{'required' : [('dropship_enabled', '=', True)]}"/>
-              <field name="dropship_webhook_enabled"/>
-              <field name="dropship_default_route_id" attrs="{'required' : [('dropship_enabled', '=', True)]}"/>
-              <field name="dropship_route_id" attrs="{'required' : [('dropship_enabled', '=', True)]}"/>
-              <field name="dropship_mto_route_id" attrs="{'required' : [('dropship_enabled', '=', True)]}"/>
+              <field name="dropship_picking_type" attrs="{'required' : [('dropship_enabled', '=', True)], 'invisible' : [('dropship_enabled', '=', False)]}"/>
+              <field name="dropship_webhook_enabled" attrs="{'required' : [('dropship_enabled', '=', True)], 'invisible' : [('dropship_enabled', '=', False)]}"/>
+              <field name="dropship_default_route_id" attrs="{'required' : [('dropship_enabled', '=', True)], 'invisible' : [('dropship_enabled', '=', False)]}"/>
+              <field name="dropship_route_id" attrs="{'required' : [('dropship_enabled', '=', True)], 'invisible' : [('dropship_enabled', '=', False)]}"/>
+              <field name="dropship_mto_route_id" attrs="{'required' : [('dropship_enabled', '=', True)], 'invisible' : [('dropship_enabled', '=', False)]}"/>
             </group>
             <group>
               <field name="orders_unconfirmed"/>
               <field name="update_parent_list_price"/>
               <field name="validate_barcode_exists"/>
+              <field name="validate_sku_exists"/>
+              <field name="validate_id_exists"/>
               <field name="simple_description_enabled"/>
               <field name="update_partner_name"/>
               <field name="update_partner_name_channel"/>
@@ -443,7 +445,7 @@
       <field name="arch" type="xml">
         <field name="categ_id" position="after">
           <separator string="Yuju"/>
-          <field name="id_product_madkting" attrs="{'readonly' : [(1,'=',1)]}"/>
+          <field name="id_product_madkting" groups="madkting.madkting_api_group"/>
           <field name="tipo_producto_yuju"/>
         </field>
       </field>

@@ -20,6 +20,8 @@ class MadktingConfig(models.Model):
     webhook_stock_enabled = fields.Boolean('Stock webhooks enabled', default=False)
     simple_description_enabled = fields.Boolean('Simple Description product enabled', default=False)
     validate_barcode_exists = fields.Boolean('Validar si el codigo de barras existe', default=True)
+    validate_sku_exists = fields.Boolean('Validar si el SKU existe', default=True)
+    validate_id_exists = fields.Boolean('Validar si el Id Yuju existe', default=True)
     update_partner_name = fields.Boolean("Update partner name with order ref")
     update_partner_name_channel = fields.Char("Channels to update partner name with order ref")
     update_order_name = fields.Boolean("Update Order Name with Channel Ref")

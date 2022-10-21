@@ -236,14 +236,46 @@ class ProductProduct(models.Model):
         # Se quita el default code de la actualizacion, agreado en multi shop, este campo no es editable desde yuju 
         # ya que una vez asignado no puede modificarse
         if 'default_code' in fields_validation['data']:
-            fields_validation['data'].pop('default_code')
+            
+            if product.default_code:
+                
+                if fields_validation['data'].get('default_code') != product.default_code:
+                    return results.error_result(code='different_sku',
+                                                    description='El sku del producto mapeado es distinto')
+
+                fields_validation['data'].pop('default_code')
+            else:
+                if config.validate_sku_exists:
+                    default_code = fields_validation['data'].get('default_code')
+                    product_ids = self.sudo().search([('default_code', '=', default_code), ('id', '!=', product_id)], limit=1)
+                    if product_ids.ids:
+                        return results.error_result(code='duplicated_sku',
+                                                        description='El SKU ya esta previamente registrado')
 
         # Si el producto cuenta actualmente con un id_product_madkting, el mapeo ya esta hecho y no debe sobre-escribirse
         # En caso de querer hacer el mapeo, debe eliminarse por script o manualmente el id_product_madkting del registro
         # Esto permitira que las nuevas tiendas mapeadas a este mismo producto no reemplacen la referencia original y 
         # se manejen por la tabla de mapeo al enviar el webhoook 
-        if product.id_product_madkting and 'id_product_madkting' in fields_validation['data']:
-            fields_validation['data'].pop('id_product_madkting')
+        if 'id_product_madkting' in fields_validation['data']:
+
+            if product.id_product_madkting:
+                
+                if str(fields_validation['data'].get('id_product_madkting')) != str(product.id_product_madkting):
+                    logger.debug(fields_validation['data'].get('id_product_madkting'))
+                    logger.debug(product.id_product_madkting)
+                    return results.error_result(code='different_id_product',
+                                                    description='El id del producto mapeado es distinto')
+                
+                fields_validation['data'].pop('id_product_madkting')
+            else:
+                if config.validate_id_exists:
+                    id_product_madkting = fields_validation['data'].get('id_product_madkting')
+                    product_ids = self.sudo().search([('id_product_madkting', '=', id_product_madkting), ('id', '!=', product_id)], limit=1)
+                    if product_ids.ids:
+                        return results.error_result(code='duplicated_id_product',
+                                                    description='El id producto ya esta previamente mapeado')
+
+            
 
         # Si se realiza un mapeo a un catalogo que ya esta mapeado actualmente, el formulario tendra el campo company_id
         # con un valor establecido, lo cual para efectos del modulo multi shop, el catalogo de productos sera compartido
@@ -251,13 +283,14 @@ class ProductProduct(models.Model):
         if is_multi_shop and product.company_id:
             fields_validation['data']['company_id'] = False
         
-        # logger.debug("#### DATA TO WRITE ####")
-        # logger.debug(fields_validation['data'])
+        logger.debug("#### DATA TO WRITE ####")
+        logger.debug(fields_validation['data'])
 
         if "barcode" in fields_validation["data"] and config.validate_barcode_exists: 
             if fields_validation["data"]["barcode"] == "":
                 # Drop empty barcode because constraint product_product_barcode_uniq
                 fields_validation["data"].pop("barcode")
+                logger.debug("Pop barcode..")
             else:
                 logger.debug("## SEARCH BARCODE UPDATE ##")
                 barcode = fields_validation["data"]["barcode"]
@@ -287,6 +320,7 @@ class ProductProduct(models.Model):
             return results.error_result('access_error', ae)
         except Exception as ex:
             logger.exception(ex)
+            logger.debug("AQUI")
             return results.error_result('save_product_update_exception', ex)
         else:
             return results.success_result()
