@@ -240,8 +240,12 @@ class ProductProduct(models.Model):
             if product.default_code:
                 
                 if fields_validation['data'].get('default_code') != product.default_code:
-                    return results.error_result(code='different_sku',
-                                                    description='El sku del producto mapeado es distinto')
+                    updatable_sku = fields_validation['data'].get('default_code')
+                    id_yuju = fields_validation['data'].get('id_product_madkting')
+                    logger.warning(f"Trying to update a different sku product, ignore product_id: {product_id}, default_code: {updatable_sku}, id_yuju: {id_yuju}")
+                    return results.success_result()
+                    # return results.error_result(code='different_sku',
+                    #                                 description='El sku del producto mapeado es distinto')
 
                 fields_validation['data'].pop('default_code')
             else:
@@ -404,10 +408,20 @@ class ProductProduct(models.Model):
         logger.debug("## V Data")
         logger.debug(v_data)
 
+        logger.debug("## Attribute values")
+        logger.debug(attribute_values)
+
+        logger.debug("## Variant Attribute")
+        logger.debug(variant_attributes)
+
         mapping = self.env['yuju.mapping.product']
 
         if attribute_values in current_variations_set:
             for variation in parent.product_variant_ids:
+
+                logger.debug("## Variant Data Attributes #1 ")
+                logger.debug(variation.get_data().get('attributes'))
+
                 if variant_attributes == variation.get_data().get('attributes'):                    
                     if id_shop:
                         id_product_madkting = v_data.get('id_product_madkting')
@@ -483,13 +497,15 @@ class ProductProduct(models.Model):
         new_variation_data = None
         v_data = fields_validation['data']
 
-        logger.debug("## New variation data")
+        logger.debug("## New variation data 222")
         logger.debug(new_variation_data)
 
         logger.debug("## V data")
         logger.debug(v_data)
 
         for variation in parent.product_variant_ids:
+            logger.debug("## Variant Data Attributes #2 ")
+            logger.debug(variation.get_data().get('attributes'))
             if variant_attributes == variation.get_data().get('attributes'):
                 # logger.debug(fields_validation['data'])
                 if id_shop:
@@ -529,6 +545,12 @@ class ProductProduct(models.Model):
         :return:
         :rtype: dict
         """
+        if not product_id:
+            return results.error_result(
+                'product_not_given',
+                'The product id is null, it should be an integer'
+            )
+
         product = self.with_context(active_test=only_active) \
                       .search([('id', '=', product_id)], limit=1)
 
