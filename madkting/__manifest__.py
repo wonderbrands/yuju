@@ -16,7 +16,7 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '1.0.0',
+    'version': '1.0.1',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
@@ -78,3 +78,9 @@
 
 # Version 1.0.0
 # *** Agrega validaciones en actualizacion, valida sku y el id de yuju, se agrega configuracion para evitar Ids y SKU duplicados
+
+# Version 1.0.0
+# *** Agrega validaciones en actualizacion, valida sku y el id de yuju, se agrega configuracion para evitar Ids y SKU duplicados
+
+# Version 1.0.1
+# *** Actualiza reglas para validar actualizacion

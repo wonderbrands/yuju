@@ -233,6 +233,29 @@ class ProductProduct(models.Model):
             except Exception as e:
                 logger.debug(e)
                 pass
+        
+        related_skus = []
+        related_ids = []
+        
+        parent = product.product_tmpl_id
+        for pv in parent.product_variant_ids:
+            related_skus.append(pv.default_code)
+            related_ids.append(pv.id_product_madkting)
+
+        logger.debug("Related Skus")
+        logger.debug(related_skus)
+
+        logger.debug("Related Ids")
+        logger.debug(related_ids)
+
+        updatable_sku = fields_validation['data'].get('default_code')
+        id_yuju = fields_validation['data'].get('id_product_madkting')
+
+        is_related = False if updatable_sku not in related_skus and id_yuju not in related_ids else True
+
+        logger.debug("Is Related")
+        logger.debug(is_related)
+        
         # Se quita el default code de la actualizacion, agreado en multi shop, este campo no es editable desde yuju 
         # ya que una vez asignado no puede modificarse
         if 'default_code' in fields_validation['data']:
@@ -240,21 +263,20 @@ class ProductProduct(models.Model):
             if product.default_code:
                 
                 if fields_validation['data'].get('default_code') != product.default_code:
-                    updatable_sku = fields_validation['data'].get('default_code')
-                    id_yuju = fields_validation['data'].get('id_product_madkting')
-                    logger.warning(f"Trying to update a different sku product, ignore product_id: {product_id}, default_code: {updatable_sku}, id_yuju: {id_yuju}")
-                    return results.success_result()
+                    if config.validate_sku_exists and not is_related:
+                        logger.warning(f"Trying to update a different sku product, ignore product_id: {product_id}, default_code: {updatable_sku}, id_yuju: {id_yuju}")
+                        return results.success_result()
                     # return results.error_result(code='different_sku',
                     #                                 description='El sku del producto mapeado es distinto')
 
                 fields_validation['data'].pop('default_code')
-            else:
-                if config.validate_sku_exists:
-                    default_code = fields_validation['data'].get('default_code')
-                    product_ids = self.sudo().search([('default_code', '=', default_code), ('id', '!=', product_id)], limit=1)
-                    if product_ids.ids:
-                        return results.error_result(code='duplicated_sku',
-                                                        description='El SKU ya esta previamente registrado')
+            # else:
+            #     if config.validate_sku_exists:
+            #         default_code = fields_validation['data'].get('default_code')
+            #         product_ids = self.sudo().search([('default_code', '=', default_code), ('id', '!=', product_id)], limit=1)
+            #         if product_ids.ids:
+            #             return results.error_result(code='duplicated_sku',
+            #                                             description='El SKU ya esta previamente registrado')
 
         # Si el producto cuenta actualmente con un id_product_madkting, el mapeo ya esta hecho y no debe sobre-escribirse
         # En caso de querer hacer el mapeo, debe eliminarse por script o manualmente el id_product_madkting del registro
@@ -265,19 +287,18 @@ class ProductProduct(models.Model):
             if product.id_product_madkting:
                 
                 if str(fields_validation['data'].get('id_product_madkting')) != str(product.id_product_madkting):
-                    logger.debug(fields_validation['data'].get('id_product_madkting'))
-                    logger.debug(product.id_product_madkting)
-                    return results.error_result(code='different_id_product',
-                                                    description='El id del producto mapeado es distinto')
+                    if config.validate_id_exists and not is_related:
+                        logger.warning(f"Trying to update a different id product, ignore product_id: {product_id}, default_code: {updatable_sku}, id_yuju: {id_yuju}")
+                        return results.success_result()
                 
                 fields_validation['data'].pop('id_product_madkting')
-            else:
-                if config.validate_id_exists:
-                    id_product_madkting = fields_validation['data'].get('id_product_madkting')
-                    product_ids = self.sudo().search([('id_product_madkting', '=', id_product_madkting), ('id', '!=', product_id)], limit=1)
-                    if product_ids.ids:
-                        return results.error_result(code='duplicated_id_product',
-                                                    description='El id producto ya esta previamente mapeado')
+            # else:
+            #     if config.validate_id_exists:
+            #         id_product_madkting = fields_validation['data'].get('id_product_madkting')
+            #         product_ids = self.sudo().search([('id_product_madkting', '=', id_product_madkting), ('id', '!=', product_id)], limit=1)
+            #         if product_ids.ids:
+            #             return results.error_result(code='duplicated_id_product',
+            #                                         description='El id producto ya esta previamente mapeado')
 
             
 
