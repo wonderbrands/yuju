@@ -419,6 +419,7 @@
           <field name="channel" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="channel_id" attrs="{'readonly':[(1,'=',1)]}" groups="base.group_no_one"/>
           <field name="yuju_shop_id" attrs="{'readonly':[(1,'=',1)]}" groups="base.group_no_one"/>
+          <!-- <field name="yuju_pack_id"/> -->
           <field name="yuju_pack_id" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="yuju_shipping_id" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="yuju_seller_id" attrs="{'readonly':[(1,'=',1)]}"/>
@@ -428,6 +429,7 @@
           <field name="yuju_update_date_order" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="yuju_payment_date_order" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="fulfillment" attrs="{'readonly':[(1,'=',1)]}"/>
+          <!-- <field name="channel_order_reference" /> -->
           <field name="channel_order_reference" attrs="{'readonly':[(1,'=',1)]}" />
           <field name="yuju_url_label" attrs="{'readonly':[(1,'=',1)]}" />
           

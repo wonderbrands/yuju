@@ -195,7 +195,7 @@ class SaleOrder(models.Model):
                 
                 if order_exists.state in ['draft', 'sent']:
                     try:
-                        order_exists.action_confirm()
+                        self._confirma_orden(order_exists)
                     except Exception as ex:
                         post_message = 'The sale order counldn\'t be confirmed because of the following exception: {}'.format(ex)
                         logger.debug(post_message)
@@ -203,6 +203,24 @@ class SaleOrder(models.Model):
 
                 data=order_exists.yuju_get_data()
                 logger.debug("### RESPONSE MDK CREATE EXISTS ####")
+                logger.debug(data)
+                return results.success_result(data)
+
+        if order_data.get('yuju_pack_id'):
+            order_exists = self.search([('yuju_pack_id', '=', order_data.get("yuju_pack_id"))], limit=1)
+            if not force_creation and order_exists:
+                logger.debug("### ORDER EXISTS {} ###".format(order_data.get("yuju_pack_id")))
+                
+                if order_exists.state in ['draft', 'sent']:
+                    try:
+                        self._confirma_orden(order_exists)
+                    except Exception as ex:
+                        post_message = 'The sale order counldn\'t be confirmed because of the following exception: {}'.format(ex)
+                        logger.debug(post_message)
+                        order_exists.message_post(body=post_message)
+
+                data=order_exists.yuju_get_data()
+                logger.debug("### RESPONSE MDK CREATE EXISTS PACK ####")
                 logger.debug(data)
                 return results.success_result(data)
 
@@ -337,7 +355,7 @@ class SaleOrder(models.Model):
             try:
                 # raise ValueError('Error on process..')
                 if not config.orders_unconfirmed:
-                    new_sale.action_confirm()
+                    self._confirma_orden(new_sale)
                 else:
                     logger.debug('orders_unconfirmed, the order should be confirmed manually')
             except Exception as ex:
@@ -397,6 +415,44 @@ class SaleOrder(models.Model):
         data.pop('order_line')
         return data
 
+    def _has_stock(self, product):
+        config = self.env['madkting.config'].get_config()
+        orders_unconfirmed_stock_src = config.orders_unconfirmed_stock_src
+        total = 0
+        for location_id in orders_unconfirmed_stock_src.split(','):
+            location = self.env['stock.location'].search([('id', '=', int(location_id))], limit=1)
+            qty_in_branch = self.env['stock.quant']._get_available_quantity(product, location)
+            if qty_in_branch:
+                total += int(qty_in_branch)
+
+        if total > 0:
+            return total
+
+        return False
+
+    def _valida_stock_productos(self, order):
+        for line in order.order_line:
+            product = line.product_id
+            stock_product = self._has_stock(product)
+            if not stock_product:
+                post_message = f"Error trying to confirm order insufficient stock."
+                order.message_post(body=post_message)
+                return False
+            else:
+                if line.product_uom_qty > stock_product:                   
+                    post_message = f"Error trying to confirm order insufficient stock."
+                    order.message_post(body=post_message)
+                    return False
+        return True
+
+    def _confirma_orden(self, order):
+        config = self.env['madkting.config'].get_config()
+        to_confirm = True
+        if config.orders_unconfirmed_by_stock:
+            to_confirm = self._valida_stock_productos(order)            
+        if to_confirm:
+            order.action_confirm()
+
     @api.model
     def update_order(self, order_id, order_data):
         """
@@ -431,8 +487,8 @@ class SaleOrder(models.Model):
                                         description='The attributes you\'re trying to update are invalid')
 
         if order.state in ['draft', 'sent'] and config and not config.orders_unconfirmed:
-            try:                
-                order.action_confirm()
+            try:       
+                self._confirma_orden(order)
             except Exception as ex:
                 return results.error_result(
                     code='sale_confirm_error',
