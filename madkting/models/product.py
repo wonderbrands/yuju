@@ -311,25 +311,23 @@ class ProductProduct(models.Model):
         logger.debug("#### DATA TO WRITE ####")
         logger.debug(fields_validation['data'])
 
-        if "barcode" in fields_validation["data"] and config.validate_barcode_exists: 
-            if fields_validation["data"]["barcode"] == "":
+        if "barcode" in fields_validation["data"]: 
+            barcode = fields_validation["data"]["barcode"]
+            if barcode == "":
                 # Drop empty barcode because constraint product_product_barcode_uniq
                 fields_validation["data"].pop("barcode")
                 logger.debug("Pop barcode..")
             else:
                 logger.debug("## SEARCH BARCODE UPDATE ##")
-                barcode = fields_validation["data"]["barcode"]
-                product_ids = self.sudo().search([('barcode', '=', barcode), ('id', '!=', product_id)], limit=1)
-                logger.debug(product_ids.ids)
+                product_ids = self.with_context(active_test=False).search([('barcode', '=', barcode), ('id', '!=', product_id)])
                 if product_ids.ids:
-                    return results.error_result(code='duplicated_barcode',
-                                                description='El codigo de barras ya esta previamente registrado')
-                else:
-                    product_ids = self.sudo().search([('barcode', '=', barcode), ('id', '!=', product_id), ('active', '=', False)], limit=1)
-                    logger.debug(product_ids.ids)
-                    if product_ids.ids:
+                    logger.warning(f'El codigo de barras ya esta previamente registrado {barcode}')
+
+                    if config.validate_barcode_exists:               
                         return results.error_result(code='duplicated_barcode',
                                                 description='El codigo de barras ya esta previamente registrado')
+                    else:
+                        fields_validation["data"].pop("barcode")
 
         logger.debug("## Fields validation data")
         logger.debug(fields_validation['data'])

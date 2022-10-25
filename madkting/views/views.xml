@@ -63,11 +63,13 @@
         <form string="Configuration" >
           <group>
             <group>
-              <field name="stock_quant_available_quantity_enabled"/>
+              <separator string="Webhooks"/>
+              <field name="webhook_stock_enabled"/>
               <field name="stock_source"/>
               <field name="stock_source_multi"/>
-              <field name="validate_partner_exists"/>              
-              <field name="webhook_stock_enabled"/>
+              <field name="stock_quant_available_quantity_enabled"/>
+
+              <separator string="Dropship"/>
               <field name="dropship_enabled"/>
               <field name="dropship_picking_type" attrs="{'required' : [('dropship_enabled', '=', True)], 'invisible' : [('dropship_enabled', '=', False)]}"/>
               <field name="dropship_webhook_enabled" attrs="{'required' : [('dropship_enabled', '=', True)], 'invisible' : [('dropship_enabled', '=', False)]}"/>
@@ -76,16 +78,24 @@
               <field name="dropship_mto_route_id" attrs="{'required' : [('dropship_enabled', '=', True)], 'invisible' : [('dropship_enabled', '=', False)]}"/>
             </group>
             <group>
-              <field name="orders_unconfirmed"/>
-              <field name="update_parent_list_price"/>
+              <separator string="Validaciones"/>
+              <field name="validate_partner_exists"/>
               <field name="validate_barcode_exists"/>
               <field name="validate_sku_exists"/>
               <field name="validate_id_exists"/>
+
+              <separator string="Ventas"/>
+              <field name="orders_unconfirmed"/>
+              <field name="orders_unconfirmed_by_stock"/>
+              <field name="orders_unconfirmed_stock_src"/>
+              <field name="update_parent_list_price"/>
               <field name="simple_description_enabled"/>
               <field name="update_partner_name"/>
               <field name="update_partner_name_channel"/>
               <field name="update_order_name"/>
               <field name="update_order_name_pack"/>
+
+              <separator string="Productos"/>
               <field name="product_custom_fields"/>
             </group>
           </group>

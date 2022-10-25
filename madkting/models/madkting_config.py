@@ -28,6 +28,8 @@ class MadktingConfig(models.Model):
     update_order_name_pack = fields.Boolean("Update Order Name with Pack")
     product_custom_fields = fields.Text("Product Custom fields")
     orders_unconfirmed = fields.Boolean('Order not confirmed', help='Deja las ordenes sin confirmar')
+    orders_unconfirmed_by_stock = fields.Boolean('Order unconfirmed stock', help='Valida el stock de las ordenes antes de confirmar')
+    orders_unconfirmed_stock_src = fields.Char(string="Stock Src Sales", help='Ubicaciones de stock para validar stock en ventas')
     update_parent_list_price = fields.Boolean('Update Parent Price', help='Actualiza el precio del producto padre en caso de tener variantes')
 
     dropship_enabled = fields.Boolean('Dropshiping Enabled')

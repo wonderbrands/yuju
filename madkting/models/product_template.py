@@ -111,20 +111,19 @@ class ProductTemplate(models.Model):
             supplier_data = product_data.pop('provider', None)
 
         logger.debug("### SEARCH BARCODE : {} ###".format(product_data.get('barcode')))
-        if 'barcode' in product_data and config.validate_barcode_exists:
-            if product_data.get('barcode'):
-                product_ids = self.env['product.product'].sudo().search([('barcode', '=', product_data.get('barcode', ''))], limit=1)
-                logger.debug(product_ids.ids)
+        if 'barcode' in product_data:
+            barcode = product_data.get('barcode')
+            if barcode:
+                
+                product_ids = self.env['product.product'].with_context(active_test=False).search([('barcode', '=', barcode)])
                 if product_ids.ids:
-                    return results.error_result(code='duplicated_barcode',
-                                                description='El codigo de barras ya esta previamente registrado')
-                else:
-                    product_ids = self.env['product.product'].sudo().search([('barcode', '=', product_data.get('barcode', '')), ('active', '=', False)], limit=1)
-                    logger.debug(product_ids.ids)
-                    if product_ids.ids:
+                    logger.warning(f'El codigo de barras ya esta previamente registrado {barcode}')
+
+                    if config.validate_barcode_exists:               
                         return results.error_result(code='duplicated_barcode',
                                                 description='El codigo de barras ya esta previamente registrado')
-
+                    else:
+                        product_data.pop('barcode')
             else:
                 logger.debug("## DROP EMPTY BARCODE ##")
                 product_data.pop('barcode')
