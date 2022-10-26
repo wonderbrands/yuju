@@ -368,6 +368,7 @@ class ProductProduct(models.Model):
         """
         logger.debug("### CREATE VARIATION ###")
         logger.debug(variation_data)
+        config = self.env['madkting.config'].get_config()
         parent_id = variation_data.pop('product_id', None)
         if not parent_id:
             return results.error_result('missing_product_id',
@@ -389,16 +390,23 @@ class ProductProduct(models.Model):
         logger.debug("## Fields validation")
         logger.debug(fields_validation)
 
-        if variation_data.get('barcode'):
-            product_ids = self.search([('barcode', '=', variation_data.get('barcode', ''))], limit=1)
-            if product_ids.ids:
-                return results.error_result(code='duplicated_barcode',
-                                            description='El codigo de barras ya esta previamente registrado')
+        if "barcode" in variation_data: 
+            barcode = variation_data.get("barcode")
+            if barcode == "":
+                # Drop empty barcode because constraint product_product_barcode_uniq
+                variation_data.pop("barcode")
+                logger.debug("Pop barcode..")
             else:
-                product_ids = self.search([('barcode', '=', variation_data.get('barcode', '')), ('active', '=', False)], limit=1)
+                logger.debug("## SEARCH BARCODE UPDATE ##")
+                product_ids = self.with_context(active_test=False).search([('barcode', '=', barcode)])
                 if product_ids.ids:
-                    return results.error_result(code='duplicated_barcode',
-                                            description='El codigo de barras ya esta previamente registrado')
+                    logger.warning(f'El codigo de barras ya esta previamente registrado {barcode}')
+
+                    if config.validate_barcode_exists:               
+                        return results.error_result(code='duplicated_barcode',
+                                                description='El codigo de barras ya esta previamente registrado')
+                    else:
+                        variation_data.pop("barcode")        
 
         attributes_structure = parent.attribute_lines_structure()
         variant_attributes = fields_validation['data'].pop('attributes')
