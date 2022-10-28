@@ -87,7 +87,13 @@ class ProductProduct(models.Model):
                 return res_materials
             else:
                 kit_components = res_materials['data']
-                product_data.update({"type" : product_type_for_kits, "detailed_type" : product_type_for_kits})
+                if config.update_product_type_kits:
+                    product_data.update({"type" : product_type_for_kits, "detailed_type" : product_type_for_kits})
+                else:
+                    if "type" in product_data:
+                        product_data.pop("type")
+                    if "detailed_type" in product_data:
+                        product_data.pop("detailed_type")
 
         res = super(ProductProduct, self).update_product(product_data, product_type, id_shop)
 
@@ -149,7 +155,13 @@ class ProductProduct(models.Model):
             # Se actualiza el tipo del producto antes de asignar la lista de materiales ya que si no, 
             # se calcula el stock en base a los materiales existentes, lo cual no permite cambiar el tipo
             # si el stock es > 0 
-            variation_data.update({"type" : product_type_for_kits, "detailed_type" : product_type_for_kits})
+            if config.update_product_type_kits:
+                variation_data.update({"type" : product_type_for_kits, "detailed_type" : product_type_for_kits})
+            else:
+                if "type" in variation_data:
+                    variation_data.pop("type")
+                if "detailed_type" in variation_data:
+                    variation_data.pop("detailed_type")            
 
         res = super(ProductProduct, self).create_variation(variation_data, id_shop)
 
@@ -230,7 +242,14 @@ class ProductTemplate(models.Model):
                     return res_materials
                 else:
                     kit_components = res_materials['data']
-                    product_data.update({"type" : product_type_for_kits, "detailed_type" : product_type_for_kits})
+                    if config.update_product_type_kits:
+                        product_data.update({"type" : product_type_for_kits, "detailed_type" : product_type_for_kits})
+                    else:
+                        if "type" in product_data:
+                            product_data.pop("type")
+                        if "detailed_type" in product_data:
+                            product_data.pop("detailed_type") 
+                    
         else:
             variation_list = []            
             for var in product_data.pop('variations'):

@@ -13,7 +13,7 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '0.0.2',
+    'version': '0.0.3',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
@@ -46,3 +46,6 @@
         "views/**/*",  # exclude all files in a folder hierarchy recursively
     ]
 }
+
+# Version 0.0.3
+# *** Agrega configuracion para actualizar tipo de producto en Odoo

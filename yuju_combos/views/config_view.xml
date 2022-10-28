@@ -9,9 +9,9 @@
                     <separator string="Combos KIT"/>
                     <field name="mrp_route" />
                     <field name="delete_old_bom" />
-                    <field name="search_kit_by_sku" />
-                    <field name="product_type_for_kits" />
-                    
+                    <field name="search_kit_by_sku" />                    
+                    <field name="update_product_type_kits" />
+                    <field name="product_type_for_kits" />                    
                 </field>
             </field>
         </record>

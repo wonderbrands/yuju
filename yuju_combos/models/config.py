@@ -17,6 +17,7 @@ class MadktingConfig(models.Model):
     mrp_route = fields.Many2one('stock.location.route', string='Ruta para Fabricacion')
     delete_old_bom = fields.Boolean('Eliminar Ldm anterior')
     search_kit_by_sku = fields.Boolean('Buscar componente por SKU', default=True)
+    update_product_type_kits = fields.Boolean('Modificar tipo de producto para combos', default=True)
     product_type_for_kits = fields.Selection(
         [('consu', 'Consumible'), ('product', 'Almacenable')], 
         string='Tipo de producto para combos', default='consu')
