@@ -16,7 +16,7 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '1.0.2',
+    'version': '1.1.0',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
@@ -84,3 +84,6 @@
 
 # Version 1.0.1
 # *** Actualiza reglas para validar actualizacion
+
+# Version 1.1.0
+# *** Agrega configuracion para cancelar ordenes si tienen movimientos de almacen

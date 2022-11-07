@@ -1045,6 +1045,7 @@ class SaleOrder(models.Model):
         :return: results dictionary
         :rtype: dict
         """
+        config = self.env['madkting.config'].get_config()
         sale_order = self.search([('id', '=', order_id)])
         warnings = list()
 
@@ -1062,7 +1063,8 @@ class SaleOrder(models.Model):
         #     )
 
         try:
-            r = sale_order.with_context({'disable_cancel_warning': True}).action_cancel()
+            force_cancel = config.orders_force_cancel
+            sale_order.with_context({'disable_cancel_warning': force_cancel}).action_cancel()
         except exceptions.AccessError as err:
             post_message = "Error trying to cancel order {}.".format(err)
             logger.debug(post_message)
@@ -1079,24 +1081,30 @@ class SaleOrder(models.Model):
                 code='cancel_error',
                 description=str(ex)
             )
-        else:            
-            post_message = 'Order cancelled'
-            logger.debug(post_message)
-            sale_order.message_post(body=post_message)
+        else:
+            if sale_order.state == 'cancel':
+                post_message = 'Order cancelled'
+                logger.debug(post_message)
+                sale_order.message_post(body=post_message)
 
-            if sale_order.invoice_ids:                
-                try:
-                    sale_order.invoice_ids.button_draft()
-                    sale_order.invoice_ids.unlink()
-                except Exception as ex:
-                    post_message = 'invoice couldn\'t be cancelled: {}'.format(ex)
-                    logger.debug(post_message)
-                    sale_order.message_post(body=post_message)
-                    warnings.append(post_message)
-                else:
-                    post_message = 'Invoice cancelled'
-                    logger.debug(post_message)
-                    sale_order.message_post(body=post_message)
+                if sale_order.invoice_ids:                
+                    try:
+                        sale_order.invoice_ids.button_draft()
+                        sale_order.invoice_ids.unlink()
+                    except Exception as ex:
+                        post_message = 'invoice couldn\'t be cancelled: {}'.format(ex)
+                        logger.debug(post_message)
+                        sale_order.message_post(body=post_message)
+                        warnings.append(post_message)
+                    else:
+                        post_message = 'Invoice cancelled'
+                        logger.debug(post_message)
+                        sale_order.message_post(body=post_message)
+            else:
+                post_message = f'No se puede cancelar la orden {sale_order.name}, verifique si tiene transacciones realizadas'
+                logger.warning(post_message)
+                warnings.append(post_message)
+                sale_order.message_post(body=post_message)
 
             return results.success_result(data=False, warnings=warnings)
 

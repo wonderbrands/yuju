@@ -31,6 +31,7 @@ class MadktingConfig(models.Model):
     orders_unconfirmed_by_stock = fields.Boolean('Order unconfirmed stock', help='Valida el stock de las ordenes antes de confirmar')
     orders_unconfirmed_stock_src = fields.Char(string="Stock Src Sales", help='Ubicaciones de stock para validar stock en ventas')
     update_parent_list_price = fields.Boolean('Update Parent Price', help='Actualiza el precio del producto padre en caso de tener variantes')
+    orders_force_cancel = fields.Boolean('Cancela ordenes con movimientos', help='Si esta habilitada las ordenes se cancelan incluso si tienen movimientos de almacen realizados.', default=False)
 
     dropship_enabled = fields.Boolean('Dropshiping Enabled')
     dropship_webhook_enabled = fields.Boolean('Dropshiping Webhook Enabled')

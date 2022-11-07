@@ -94,6 +94,7 @@
               <field name="update_partner_name_channel"/>
               <field name="update_order_name"/>
               <field name="update_order_name_pack"/>
+              <field name="orders_force_cancel"/>              
 
               <separator string="Productos"/>
               <field name="product_custom_fields"/>
