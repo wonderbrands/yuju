@@ -1,8 +1,8 @@
 from odoo.api import Environment
 from ..log.logger import logger
+from ..log.logger import logs
 import requests
 import json
-
 
 def send_stock_webhook(env, product, company_id, hook_id=None):
     """
@@ -82,7 +82,7 @@ def send_stock_webhook(env, product, company_id, hook_id=None):
                 """
                 TODO: if the webhook fails store it into a database for retry implementation
                 """
-                success = send_webhook(webhook.url, data, headers)
+                success = send_webhook(env, webhook.url, data, headers)
 
     else:
         if hook_id:
@@ -109,19 +109,20 @@ def send_stock_webhook(env, product, company_id, hook_id=None):
             """
             TODO: if the webhook fails store it into a database for retry implementation
             """
-            success = send_webhook(webhook.url, data, headers)
+            success = send_webhook(env, webhook.url, data, headers)
 
-def send_webhook(url, data, headers):
+def send_webhook(env, url, data, headers):
     """
     :param url:
     :param data:
     :param headers:
     :return:
     """
-    logger.debug("#### SEND WEBHOOK ####")
-    logger.debug(data)
-    logger.debug(url)
-    logger.debug(headers)
+    config = env['madkting.config'].sudo().get_config()
+    logs("#### SEND WEBHOOK ####", config)
+    logs(data, config)
+    logs(url, config)
+    logs(headers, config)
     try:
         response = requests.post(url, data=data, headers=headers)
     except Exception as ex:

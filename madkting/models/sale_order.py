@@ -227,6 +227,8 @@ class SaleOrder(models.Model):
         # if config.orders_unconfirmed:
         #     order_data.update({'state' : 'draft'})
 
+        warehouse_id = order_data.get('warehouse_id')
+
         if order_data.get('fulfillment') and order_data.get('channel_id'):
             fulfillment = order_data.get('fulfillment')
             channel_id = order_data.get('channel_id')
@@ -276,6 +278,9 @@ class SaleOrder(models.Model):
                 line['state'] = 'draft'
 
                 product = self.env['product.product'].search([('id', '=', int(line.get('product_id')))], limit=1)
+
+                if config.orders_line_warehouse_enabled and warehouse_id:
+                    line.update({'warehouse_id' : warehouse_id})
 
                 if config.dropship_enabled and new_sale.warehouse_id.dropship_enabled:
                     route = config.dropship_default_route_id

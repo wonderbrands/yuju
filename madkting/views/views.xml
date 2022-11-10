@@ -83,6 +83,7 @@
               <field name="validate_barcode_exists"/>
               <field name="validate_sku_exists"/>
               <field name="validate_id_exists"/>
+              <field name="log_enabled"/>
 
               <separator string="Ventas"/>
               <field name="orders_unconfirmed"/>
@@ -94,7 +95,8 @@
               <field name="update_partner_name_channel"/>
               <field name="update_order_name"/>
               <field name="update_order_name_pack"/>
-              <field name="orders_force_cancel"/>              
+              <field name="orders_force_cancel"/>
+              <field name="orders_line_warehouse_enabled"/>
 
               <separator string="Productos"/>
               <field name="product_custom_fields"/>
@@ -430,11 +432,9 @@
           <field name="yuju_update_date_order" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="yuju_payment_date_order" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="fulfillment" attrs="{'readonly':[(1,'=',1)]}"/>
-          <!-- <field name="channel_order_reference" /> -->
-          <field name="channel_order_reference" attrs="{'readonly':[(1,'=',1)]}" />
+          <field name="channel_order_reference" />
+          <!-- <field name="channel_order_reference" attrs="{'readonly':[(1,'=',1)]}" /> -->
           <field name="yuju_url_label" attrs="{'readonly':[(1,'=',1)]}" />
-          
-          <!-- <field name="channel_order_reference" /> -->
           <field name="payment_id" attrs="{'readonly':[(1,'=',1)]}" groups="base.group_no_one"/>
         </field>
       </field>
