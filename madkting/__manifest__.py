@@ -16,7 +16,7 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '1.1.2',
+    'version': '1.1.3',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
@@ -90,3 +90,6 @@
 
 # Version 1.1.2
 # *** Agrega valildacion de stock debug
+
+# Version 1.1.3
+# *** Modifica funcion obtener stock

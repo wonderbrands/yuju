@@ -290,7 +290,8 @@ class SaleOrder(models.Model):
                         logger.debug("## ID RUTA: {}".format(route.id))
                         location_stock = new_sale.warehouse_id.lot_stock_id
                         logger.debug("## LOCATION STOCK: {}".format(location_stock.id))
-                        qty_in_branch = self.env['stock.quant']._get_available_quantity(product, location_stock)
+                        qty_in_branch = product.with_context({'location' : location_stock.id}).qty_available
+                        # qty_in_branch = self.env['stock.quant']._get_available_quantity(product, location_stock)
                         logger.debug("## QTY IN BRANCH: {}".format(qty_in_branch))
                         if qty_in_branch < line.get('product_uom_qty', 0):
                             if product.tipo_producto_yuju and product.tipo_producto_yuju == "dropship":
@@ -432,7 +433,8 @@ class SaleOrder(models.Model):
             for location_id in orders_unconfirmed_stock_src.split(','):
                 location = self.env['stock.location'].search([('id', '=', int(location_id))], limit=1)
                 logger.info(f"Location: {location.id} - {location.name}")
-                qty_in_branch = self.env['stock.quant']._get_available_quantity(product, location)
+                qty_in_branch = product.with_context({'location' : location.id}).qty_available
+                # qty_in_branch = self.env['stock.quant']._get_available_quantity(product, location)
                 logger.info(f"Quantity for: {qty_in_branch}")
                 location_stock = f'{location_stock} Location: {location.name}, Stock: {qty_in_branch}, '
                 if qty_in_branch:
@@ -448,7 +450,8 @@ class SaleOrder(models.Model):
         total = 0
         for location_id in orders_unconfirmed_stock_src.split(','):
             location = self.env['stock.location'].search([('id', '=', int(location_id))], limit=1)
-            qty_in_branch = self.env['stock.quant']._get_available_quantity(product, location)
+            # qty_in_branch = self.env['stock.quant']._get_available_quantity(product, location)
+            qty_in_branch = product.with_context({'location' : location.id}).qty_available
             if qty_in_branch:
                 total += int(qty_in_branch)
 
