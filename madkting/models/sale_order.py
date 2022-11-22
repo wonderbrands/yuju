@@ -420,6 +420,28 @@ class SaleOrder(models.Model):
         data.pop('order_line')
         return data
 
+    def tiene_stock(self):
+        config = self.env['madkting.config'].get_config()
+        orders_unconfirmed_stock_src = config.orders_unconfirmed_stock_src
+        logger.info(f"Locations to validate stock: {orders_unconfirmed_stock_src}")
+        for line in self.order_line:
+            product = line.product_id
+            logger.info(f"Producto: {product.id} - {product.default_code}")
+            total = 0
+            location_stock = ''
+            for location_id in orders_unconfirmed_stock_src.split(','):
+                location = self.env['stock.location'].search([('id', '=', int(location_id))], limit=1)
+                logger.info(f"Location: {location.id} - {location.name}")
+                qty_in_branch = self.env['stock.quant']._get_available_quantity(product, location)
+                logger.info(f"Quantity for: {qty_in_branch}")
+                location_stock = f'{location_stock} Location: {location.name}, Stock: {qty_in_branch}, '
+                if qty_in_branch:
+                    total += int(qty_in_branch)            
+            logger.info(f"Total: {total}")
+            post_message = f"Product {product.default_code}, {location_stock}."
+            self.message_post(body=post_message)
+        
+
     def _has_stock(self, product):
         config = self.env['madkting.config'].get_config()
         orders_unconfirmed_stock_src = config.orders_unconfirmed_stock_src
@@ -440,12 +462,12 @@ class SaleOrder(models.Model):
             product = line.product_id
             stock_product = self._has_stock(product)
             if not stock_product:
-                post_message = f"Error trying to confirm order insufficient stock."
+                post_message = f"Error trying to confirm order, product {product.default_code} insufficient stock 0."
                 order.message_post(body=post_message)
                 return False
             else:
                 if line.product_uom_qty > stock_product:                   
-                    post_message = f"Error trying to confirm order insufficient stock."
+                    post_message = f"Error trying to confirm order, product {product.default_code} insufficient stock {stock_product}."
                     order.message_post(body=post_message)
                     return False
         return True

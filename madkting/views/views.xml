@@ -420,7 +420,7 @@
         <field name="client_order_ref" position="after">
           <separator string="Yuju"/>
           <field name="channel" attrs="{'readonly':[(1,'=',1)]}"/>
-          <field name="channel_id" attrs="{'readonly':[(1,'=',1)]}" groups="base.group_no_one"/>
+          <field name="channel_id" attrs="{'readonly':[(1,'=',1)]}" groups="madkting.madkting_api_group"/>
           <field name="yuju_shop_id" attrs="{'readonly':[(1,'=',1)]}" groups="base.group_no_one"/>
           <!-- <field name="yuju_pack_id"/> -->
           <field name="yuju_pack_id" attrs="{'readonly':[(1,'=',1)]}"/>
@@ -433,6 +433,7 @@
           <field name="yuju_payment_date_order" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="fulfillment" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="channel_order_reference" />
+          <button name="tiene_stock" string="Validar stock" type="object" class="oe_highlight" groups="madkting.madkting_api_group"/>
           <!-- <field name="channel_order_reference" attrs="{'readonly':[(1,'=',1)]}" /> -->
           <field name="yuju_url_label" attrs="{'readonly':[(1,'=',1)]}" />
           <field name="payment_id" attrs="{'readonly':[(1,'=',1)]}" groups="base.group_no_one"/>
