@@ -97,6 +97,7 @@
               <field name="update_order_name_pack"/>
               <field name="orders_force_cancel"/>
               <field name="orders_line_warehouse_enabled"/>
+              <field name="order_disable_update_empty_fields"/>
 
               <separator string="Productos"/>
               <field name="product_custom_fields"/>
@@ -461,6 +462,7 @@
           <separator string="Yuju"/>
           <field name="id_product_madkting" groups="madkting.madkting_api_group"/>
           <field name="tipo_producto_yuju"/>
+          <!-- <button name="show_qty" type="object" string="Mostrar cantidad" class="oe_highlight"/> -->
         </field>
       </field>
     </record>

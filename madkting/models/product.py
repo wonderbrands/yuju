@@ -57,6 +57,14 @@ class ProductProduct(models.Model):
                                  'detailed_type' : str,
                                  'id_product_madkting': (int, str)}
 
+    def show_qty(self):
+        qty_available = self.with_context({'location' : 8}).qty_available
+        free_qty = self.with_context({'location' : 8}).free_qty
+        post_message = f"Qty {qty_available}."
+        post_message2 = f"Free Qty {free_qty}."
+        logger.info(f"## QTY IN BRANCH: {post_message}")
+        logger.info(f"## QTY IN BRANCH: {post_message2}")
+
     @api.model
     def send_webhook(self, company_id):
         """

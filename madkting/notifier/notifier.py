@@ -22,12 +22,15 @@ def send_stock_webhook(env, product, company_id, hook_id=None):
     # product = env['product.product'].search([('id', '=', product_id)], limit=1)
     config = env['madkting.config'].sudo().get_config()
         
-    # if config and config.stock_quant_available_quantity_enabled:
     ubicaciones_stock = {}
     if config.stock_source:
         # Si se define una stock.location, no se consultan todas.
         location = config.stock_source
-        qty_in_branch = product.with_context({'location' : location.id}).qty_available
+        if config and config.stock_quant_available_quantity_enabled:
+            qty_in_branch = product.with_context({'location' : location.id}).free_qty
+        else:
+            qty_in_branch = product.with_context({'location' : location.id}).qty_available
+            
         # qty_in_branch = env['stock.quant']._get_available_quantity(product, location)
         ubicaciones_stock.update({location.id : qty_in_branch})
 
@@ -38,7 +41,10 @@ def send_stock_webhook(env, product, company_id, hook_id=None):
     elif config.stock_source_multi:
         for location_id in config.stock_source_multi.split(','):
             location = env['stock.location'].search([('id', '=', int(location_id))], limit=1)
-            qty_in_branch = product.with_context({'location' : location.id}).qty_available
+            if config and config.stock_quant_available_quantity_enabled:
+                qty_in_branch = product.with_context({'location' : location.id}).free_qty
+            else:
+                qty_in_branch = product.with_context({'location' : location.id}).qty_available
             # qty_in_branch = env['stock.quant']._get_available_quantity(product, location)
             ubicaciones_stock.update({location.id : qty_in_branch})
 
@@ -46,7 +52,10 @@ def send_stock_webhook(env, product, company_id, hook_id=None):
         for branch_id, stock in product.get_stock_by_location().items():
             location = env['stock.location'].search([('id', '=', int(branch_id))], limit=1)
             # qty_in_branch = env['stock.quant']._get_available_quantity(product, location)
-            qty_in_branch = product.with_context({'location' : location.id}).qty_available
+            if config and config.stock_quant_available_quantity_enabled:
+                qty_in_branch = product.with_context({'location' : location.id}).free_qty
+            else:
+                qty_in_branch = product.with_context({'location' : location.id}).qty_available
             ubicaciones_stock.update({branch_id : qty_in_branch})
     # else:
     #     ubicaciones_stock = product.get_stock_by_location()

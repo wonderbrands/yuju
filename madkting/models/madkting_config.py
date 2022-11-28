@@ -14,7 +14,7 @@ class MadktingConfig(models.Model):
     _name = 'madkting.config'
     _description = 'Config'
 
-    stock_quant_available_quantity_enabled = fields.Boolean('Stock Quant Available Qty Enabled', default=False)
+    stock_quant_available_quantity_enabled = fields.Boolean('Mostrar cantidad disponible', default=False)
     stock_source = fields.Many2one('stock.location', string="Ubicacion de Stock", domain=[('usage', '=', 'internal')])
     stock_source_multi = fields.Char('Multi Stock Src')
     webhook_stock_enabled = fields.Boolean('Stock webhooks enabled', default=False)
@@ -33,6 +33,8 @@ class MadktingConfig(models.Model):
     update_parent_list_price = fields.Boolean('Update Parent Price', help='Actualiza el precio del producto padre en caso de tener variantes')
     orders_force_cancel = fields.Boolean('Cancela ordenes con movimientos', help='Si esta habilitada las ordenes se cancelan incluso si tienen movimientos de almacen realizados.', default=False)
     orders_line_warehouse_enabled = fields.Boolean('Asigna almacen a las lineas de venta', help='Si esta habilitada se asigna el mismo almacen de la orden a las lineas de venta.', default=False)
+    order_disable_update_empty_fields = fields.Char('Campos que no se actualizan si estan vacios')
+
     log_enabled = fields.Boolean('Habilitar log')
 
     dropship_enabled = fields.Boolean('Dropshiping Enabled')
