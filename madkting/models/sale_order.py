@@ -433,7 +433,7 @@ class SaleOrder(models.Model):
             for location_id in orders_unconfirmed_stock_src.split(','):
                 location = self.env['stock.location'].search([('id', '=', int(location_id))], limit=1)
                 logger.info(f"Location: {location.id} - {location.name}")
-                qty_in_branch = product.with_context({'location' : location.id}).qty_available
+                qty_in_branch = product.with_context({'location' : location.id}).free_qty
                 # qty_in_branch = self.env['stock.quant']._get_available_quantity(product, location)
                 logger.info(f"Quantity for: {qty_in_branch}")
                 location_stock = f'{location_stock} Location: {location.name}, Stock: {qty_in_branch}, '
@@ -444,16 +444,15 @@ class SaleOrder(models.Model):
             self.message_post(body=post_message)
         
 
-    def _has_stock(self, product):
-        config = self.env['madkting.config'].get_config()
-        orders_unconfirmed_stock_src = config.orders_unconfirmed_stock_src
+    def _has_stock(self, product, location):
+        logger.info(f"Valida Stock Location: {location.id}")
         total = 0
-        for location_id in orders_unconfirmed_stock_src.split(','):
-            location = self.env['stock.location'].search([('id', '=', int(location_id))], limit=1)
-            # qty_in_branch = self.env['stock.quant']._get_available_quantity(product, location)
-            qty_in_branch = product.with_context({'location' : location.id}).qty_available
-            if qty_in_branch:
-                total += int(qty_in_branch)
+        # qty_in_branch = self.env['stock.quant']._get_available_quantity(product, location)
+        qty_in_branch = product.with_context({'location' : location.id}).free_qty
+        logger.info(f"QTY IN BRANCH: {qty_in_branch}")
+
+        if qty_in_branch:
+            total += int(qty_in_branch)
 
         if total > 0:
             return total
@@ -461,16 +460,17 @@ class SaleOrder(models.Model):
         return False
 
     def _valida_stock_productos(self, order):
+        location = order.warehouse_id.lot_stock_id
         for line in order.order_line:
             product = line.product_id
-            stock_product = self._has_stock(product)
+            stock_product = self._has_stock(product, location)
             if not stock_product:
-                post_message = f"Error trying to confirm order, product {product.default_code} insufficient stock 0."
+                post_message = f"Error trying to confirm order, product {product.default_code} insufficient stock 0, Location: {location.name}."
                 order.message_post(body=post_message)
                 return False
             else:
                 if line.product_uom_qty > stock_product:                   
-                    post_message = f"Error trying to confirm order, product {product.default_code} insufficient stock {stock_product}."
+                    post_message = f"Error trying to confirm order, product {product.default_code} insufficient stock {stock_product}, Location: {location.name}."
                     order.message_post(body=post_message)
                     return False
         return True

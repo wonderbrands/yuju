@@ -16,7 +16,7 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '1.1.4',
+    'version': '1.1.5',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
@@ -96,3 +96,6 @@
 
 # Version 1.1.4
 # *** Agrega configuracion obtener stock a la mano o stock disponible
+
+# Version 1.1.5
+# *** Actualiza metodo confirmar orden si tiene stock disponible
