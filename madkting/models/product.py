@@ -92,21 +92,26 @@ class ProductProduct(models.Model):
     def get_stock_data(self, location_id):
         config = self.env['madkting.config'].get_config()
         product_ids = self.search([('id_product_madkting', '!=', False)])
-        product_data = {}
+        product_data = []
         if config.stock_source_multi:
             for product in product_ids:
                 stock_product = 0
                 for location in config.stock_source_multi.split(','):
                     location_id = int(location)
                     qty_in_branch = product.with_context({"location" : location_id}).free_qty
-                    if product.id_product_madkting in product_data:
-                        product_data[str(product.id_product_madkting)][str(location_id)] = qty_in_branch
-                    else:
-                        product_data[str(product.id_product_madkting)] = {
-                            str(location_id) : qty_in_branch
-                        }
+                    # if product.id_product_madkting in product_data:
+                    #     product_data[str(product.id_product_madkting)][str(location_id)] = qty_in_branch
+                    # else:
+                    #     product_data[str(product.id_product_madkting)] = {
+                    #         str(location_id) : qty_in_branch
+                    #     }
                     stock_product += qty_in_branch
-                product_data[str(product.id_product_madkting)]["stock"] = stock_product
+                product_data.append({
+                    "product_id" : str(product.id_product_madkting),
+                    "sku" : product.default_code,
+                    "price" : product.lst_price,
+                    "stock" : qty_in_branch
+                })                
         
         logger.debug("## STOCK DATA ##")
         logger.debug(product_data)
