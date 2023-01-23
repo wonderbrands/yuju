@@ -38,20 +38,20 @@ class MadktingStockMoveListener(Component):
         """
         config = self.env['madkting.config'].sudo().get_config()
 
-        logs("LISTENER STOCK MOVE", config)
-        logs(record, config)
+        # logs("LISTENER STOCK MOVE", config)
+        # logs(record, config)
 
         if not config or not config.webhook_stock_enabled:
             return
 
         record_state = getattr(record, 'state', None)
-        logs(record_state, config)
+        # logs(record_state, config)
         record_product = getattr(record, 'product_id', None)
-        logs(record_product, config)
+        # logs(record_product, config)
         record_product_yuju = getattr(record_product, 'id_product_madkting', None)
-        logs(record_product_yuju, config)
-        if record_state in ['assigned', 'done'] and record.product_id.id_product_madkting:            
-            logs("############## ok #############", config)
+        # logs(record_product_yuju, config)
+        if record_state in ['assigned', 'done'] and record_product_yuju:            
+            # logs("############## ok #############", config)
             try:
                 notifier.send_stock_webhook(self.env, record.product_id, record.company_id.id)
             except Exception as ex:

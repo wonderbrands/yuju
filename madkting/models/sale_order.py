@@ -22,13 +22,14 @@ class SaleOrder(models.Model):
     yuju_shipping_id = fields.Char('Yuju Shipping Id')
     yuju_seller_id = fields.Char('Yuju Seller Id')
     yuju_marketplace_fee = fields.Float("Marketplace Fee")
-    yuju_seller_shipping_cost = fields.Float("Seller Shipping Cost")
+    yuju_seller_shipping_cost = fields.Float("Seller Shipping Cost Yuju")
     yuju_carrier_tracking_ref = fields.Char("Numero de Guia")
     yuju_update_date_order = fields.Char("Fecha Actualizacion Yuju")
     yuju_payment_date_order = fields.Char("Fecha Acreditacion Pago")
 
     fulfillment = fields.Selection([
         ('fbf', 'Flex'),
+        ('mix', 'Mix'),
         ('fbm', 'Seller'),
         ('fbc', 'Full'),
         ], string="Fulfillment")
@@ -479,7 +480,20 @@ class SaleOrder(models.Model):
         config = self.env['madkting.config'].get_config()
         to_confirm = True
         if config.orders_unconfirmed_by_stock:
-            to_confirm = self._valida_stock_productos(order)            
+            to_confirm = self._valida_stock_productos(order)
+        
+        if to_confirm and config.orders_unconfirmed_by_ff_type:
+            logger.debug("Valida tipo de Fulfillment para confirmar la orden")
+            fulfillments = config.orders_unconfirmed_ff_types.split(',')
+            logger.debug(f"Fulfillments para validar {fulfillments}")
+            logger.debug(f"Order Fulfillment {order.fulfillment}")
+            if fulfillments:
+                if order.fulfillment in fulfillments:
+                    logger.debug("No se confirma..")
+                    to_confirm = False
+                    post_message = f"El tipo de fulfillment es [{order.fulfillment}], no se confirma la orden"
+                    order.message_post(body=post_message)
+
         if to_confirm:
             order.action_confirm()
 

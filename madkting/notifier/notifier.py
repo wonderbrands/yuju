@@ -18,6 +18,10 @@ def send_stock_webhook(env, product, company_id, hook_id=None):
     logger.debug('### SEND STOCK WEBHOOK ###')
     product_id = product.id
     logger.debug("Producto: {}".format(product_id))
+    # if not product.company_id:
+    #     company_id = env.user.company_id.id
+    # else:
+    #     company_id = product.company_id.id
     logger.debug("Company: {}".format(company_id))
     # product = env['product.product'].search([('id', '=', product_id)], limit=1)
     config = env['madkting.config'].sudo().get_config()

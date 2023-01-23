@@ -88,7 +88,9 @@
               <separator string="Ventas"/>
               <field name="orders_unconfirmed"/>
               <field name="orders_unconfirmed_by_stock"/>
+              <field name="orders_unconfirmed_by_ff_type"/>
               <field name="orders_unconfirmed_stock_src"/>
+              <field name="orders_unconfirmed_ff_types"/>
               <field name="update_parent_list_price"/>
               <field name="simple_description_enabled"/>
               <field name="update_partner_name"/>
@@ -462,6 +464,7 @@
           <separator string="Yuju"/>
           <field name="id_product_madkting" groups="madkting.madkting_api_group"/>
           <field name="tipo_producto_yuju"/>
+          <button name="send_webhook" string="Enviar Webhook" type="object" class="oe_highlight" groups="madkting.madkting_api_group"/>
           <!-- <button name="show_qty" type="object" string="Mostrar cantidad" class="oe_highlight"/> -->
         </field>
       </field>

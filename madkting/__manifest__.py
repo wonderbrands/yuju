@@ -16,7 +16,7 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '1.1.6',
+    'version': '1.1.8',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
@@ -102,3 +102,9 @@
 
 # Version 1.1.6
 # *** Agrega metodo obtener stock
+
+# Version 1.1.7
+# *** Agrega metodo enviar webhook manualmente
+
+# Version 1.1.8
+# *** Agrega configuracion validar fulfillment para confirmar la orden

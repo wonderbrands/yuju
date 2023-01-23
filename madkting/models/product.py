@@ -65,8 +65,31 @@ class ProductProduct(models.Model):
         logger.info(f"## QTY IN BRANCH: {post_message}")
         logger.info(f"## QTY IN BRANCH: {post_message2}")
 
+    def send_webhook(self):
+        """
+        :param product_id:
+        :type product_id: int
+        :return:
+        :rtype: dict
+        """     
+        for product in self:
+            if not product.id_product_madkting:
+                product.message_post(body="Error al lanzar webhook: El producto no esta mapeado con Yuju")
+                return
+            if not product.company_id:
+                company_id = self.env.user.company_id.id
+            else:
+                company_id = product.company_id.id
+            try:
+                notifier.send_stock_webhook(self.env, product, company_id)
+            except Exception as ex:
+                logger.debug("###Exception Ocurred on Sending Webhook")
+                logger.debug(ex)        
+            
+        return results.success_result()
+
     @api.model
-    def send_webhook(self, company_id):
+    def send_webhook_all(self, company_id=None):
         """
         :param product_id:
         :type product_id: int
@@ -78,6 +101,9 @@ class ProductProduct(models.Model):
         if not product_ids:
             return results.error_result('product_not_found',
                                         'product_id not found')
+
+            if not company_id:
+                company_id = self.env.user.company_id.id 
 
         for product in product_ids:
             try:
