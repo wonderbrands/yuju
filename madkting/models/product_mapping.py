@@ -157,35 +157,77 @@ class YujuMappingField(models.Model):
     default_value = fields.Char('Odoo Field Default Value')
     fieldtype = fields.Selection([('integer', 'Numerico'), ('char', 'Cadena'), ('relation', 'Relacional')], 'Odoo Field Type')
     model = fields.Many2one('yuju.mapping.model', 'Modelo Mapeo')
+    model_relation = fields.Many2one('yuju.mapping.model', 'Modelo Relacion')
     field_values = fields.One2many('yuju.mapping.field.value', 'field_id', 'Valores campos')
 
     @api.model
     def update_mapping_fields(self, record_data, modelo):
-        fvalues = self.env['yuju.mapping.field.value']
+        
+        logger.debug(f"## Se buscan mapeo de campos {modelo} ##")
+        logger.debug(record_data)
+        # field_values = self.env['yuju.mapping.field.value']
         mapping_model = self.env['yuju.mapping.model'].search([('code', '=', modelo)], limit=1)
-        if mapping_model:
-            logger.debug("## Mapping model found")
-            mapping_field_ids = self.search([('model', '=', mapping_model.id)])
-            logger.debug("## Mapping field ids")
-            for row in mapping_field_ids:
-                yuju_field = row.name
-                odoo_field = row.field
-                logger.debug(yuju_field)
+        
+        if not mapping_model: 
+            logger.debug(f"No se encontraron mapeos para el modelo {modelo}")
+            return record_data
 
-                mapping_value = row.default_value
+        mapping_fields = self.search([('model', '=', mapping_model.id)])
 
-                if yuju_field in record_data and yuju_field != 'custom_default':
-                    yuju_value = record_data.pop(yuju_field)
-                    mapping_value_id = fvalues.search([('field_id', '=', row.id), ('name', '=', yuju_value)], limit=1)
-                    if mapping_value_id:
-                        mapping_value = mapping_value_id.value
+        logger.debug("Mappings encontrados")
+        logger.debug(mapping_fields)
+        
+        for mapping in mapping_fields:
+            yuju_field = mapping.name
+            odoo_field = mapping.field
+            default_value = mapping.default_value 
+            tipo = mapping.fieldtype
+            model_rel = mapping.model_relation
+
+            mapping_value = None
+
+            logger.debug(yuju_field)
+
+            if yuju_field in record_data:
+                yuju_value = record_data.pop(yuju_field)
+
+                if tipo == "relation":
+                    try:
+                        model_code = model_rel.code
+                        rel_value = self.env[model_code].search(['|', ('name', '=', yuju_value), ('code', '=', yuju_value)], limit=1)
+                    except Exception as e:
+                        logger.error(f'No se pudo obtener informacion del modelo {model_code}, validar que el modelo exista y tenga acceso, {e}')
                     else:
-                        mapping_value = row.default_value                        
+                        logger.debug(f"Valor encontrado en el mapeo {yuju_value}, del modelo {model_code}: {rel_value}")
+                        mapping_value = rel_value.id
+                else:
+                        
+                    if not mapping.field_values:
+                        if default_value:
+                            mapping_value = default_value
+                        else:
+                            mapping_value = yuju_value
+                    else:
+                        mapping_value_id = mapping.field_values.search([('name', '=', yuju_value)], limit=1)
+                        # mapping_value_id = field_values.search([('field_id', '=', mapping.id), ('name', '=', yuju_value)], limit=1)
 
-                if row.fieldtype in ['integer', 'relation']:
+                        if mapping_value_id:
+                            mapping_value = mapping_value_id.value
+                        else:
+                            if default_value:
+                                mapping_value = default_value
+                            else:
+                                mapping_value = yuju_value
+
+            if mapping_value:
+
+                if tipo in ['integer']:
                     mapping_value = int(mapping_value)
-                    
-                record_data.update({odoo_field : mapping_value})
+
+                update_data = {odoo_field : mapping_value}
+                logger.debug(f"#Actualiza datos por campos mapeados {update_data}")
+
+                record_data.update(update_data)
 
         return record_data
 
@@ -204,12 +246,32 @@ class YujuMappingCustom(models.Model):
 
     name = fields.Char('Campo')
     value = fields.Char('Valor por defecto')
+    value_type = fields.Selection([('number', 'Numero'), ('char', 'Cadena')], default='char', string='Tipo de Valor')
     custom_values = fields.One2many('yuju.mapping.custom.value', 'custom_id', 'Valores custom')
+    modelo = fields.Selection(
+        [('sales', 'Ventas'), ('invoices', 'Facturas')], 'Tipo de modelo')
 
     @api.model
-    def update_custom_values(self, fulfillment, channel_id):        
+    def get_defect_values(self, modelo='sales'):        
+        default_values = {}
+        mapping_custom = self.search([('modelo', '=', modelo)])
+        if mapping_custom.ids:
+            logger.debug("## Default 1")
+            for el in mapping_custom:
+                if el.name:
+                    custom_field = el.name
+                    custom_default = el.value
+
+                    if el.value_type == 'number':
+                        custom_default = int(custom_default)
+
+                    default_values.update({custom_field : custom_default})
+        return default_values
+
+    @api.model
+    def update_custom_values(self, fulfillment, channel_id, modelo='sales'):        
         custom_data = {}
-        mapping_custom = self.search([])
+        mapping_custom = self.search([('modelo', '=', modelo)])
         if mapping_custom.ids:
             logger.debug("## Custom 1")
             for el in mapping_custom:

@@ -17,6 +17,11 @@ class ProductTemplate(models.Model):
     _inherit = 'product.template'
 
     @api.model
+    def update_mapping_fields(self, product_data):
+        product_data = self.env['yuju.mapping.field'].update_mapping_fields(product_data, 'product.template')
+        return product_data
+
+    @api.model
     def mdk_create(self, product_data, id_shop=None):
         """
         TODO: Prices are defined by product not variant. This behavior may be emulated with discount rules in odoo
@@ -128,26 +133,27 @@ class ProductTemplate(models.Model):
                 logger.debug("## DROP EMPTY BARCODE ##")
                 product_data.pop('barcode')
 
-        if product_data.get('yuju_sat_id'):
-            logger.debug('Product data contains yuju_sat_id')
-            if config and config.product_custom_fields and 'yuju_sat_id' in config.product_custom_fields.split(','):
-                sat_code = product_data['yuju_sat_id']
-                try:
-                    sat_code_ids = self.env['l10n_mx_edi.product.sat.code'].search([('code', '=', sat_code)], limit=1)
-                    if sat_code_ids:
-                        product_data['yuju_sat_id'] = sat_code_ids[0].id
-                        logger.debug('yuju_sat_id asigned.')
-                    else:
-                        logger.debug('Remove yuju_sat_id from product data')
-                        product_data.pop('yuju_sat_id')
-                except Exception as e:
-                    logger.error("Error al asignar el Codigo Sat al producto, {}".format(e))
-                    product_data.pop('yuju_sat_id')
-                    pass
-            else:
-                logger.debug('Remove yuju_sat_id from product data')
-                product_data.pop('yuju_sat_id')
+        # if product_data.get('yuju_sat_id'):
+        #     logger.debug('Product data contains yuju_sat_id')
+        #     if config and config.product_custom_fields and 'yuju_sat_id' in config.product_custom_fields.split(','):
+        #         sat_code = product_data['yuju_sat_id']
+        #         try:
+        #             sat_code_ids = self.env['l10n_mx_edi.product.sat.code'].search([('code', '=', sat_code)], limit=1)
+        #             if sat_code_ids:
+        #                 product_data['yuju_sat_id'] = sat_code_ids[0].id
+        #                 logger.debug('yuju_sat_id asigned.')
+        #             else:
+        #                 logger.debug('Remove yuju_sat_id from product data')
+        #                 product_data.pop('yuju_sat_id')
+        #         except Exception as e:
+        #             logger.error("Error al asignar el Codigo Sat al producto, {}".format(e))
+        #             product_data.pop('yuju_sat_id')
+        #             pass
+        #     else:
+        #         logger.debug('Remove yuju_sat_id from product data')
+        #         product_data.pop('yuju_sat_id')
 
+        product_data = self.update_mapping_fields(product_data)
 
         # create a product simple
         if not has_variations:

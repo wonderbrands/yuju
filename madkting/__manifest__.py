@@ -16,7 +16,7 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '1.1.8',
+    'version': '1.4.5',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
@@ -104,7 +104,44 @@
 # *** Agrega metodo obtener stock
 
 # Version 1.1.7
-# *** Agrega metodo enviar webhook manualmente
+# *** Agrega metodo enviar webhook manual
 
 # Version 1.1.8
 # *** Agrega configuracion validar fulfillment para confirmar la orden
+
+# Version 1.1.9
+# *** Agrega configuracion quitar impuestos por default
+
+# Version 1.2.0
+# *** Actualiza funcionalidad para mapeo de campos y defaults
+
+# Version 1.2.1
+# *** Agrega cambio de tipo en mapeo de campos
+
+# Version 1.3.0
+# *** Agrega flujo para envio de boletas hacia yuju
+
+# Version 1.3.1
+# *** Agrega config document_type para envio de facturas
+
+# Version 1.3.2
+# *** Actualiza api create mult decorator on method create from base,
+# *** Configura RFC por defecto y actualiza parametro id_order en flujo de boletas
+
+# Version 1.4.0
+# *** Agrega config multi empresa
+
+# Version 1.4.1
+# *** Agrega configuracion catalogo compartido de productos en multiempresa
+
+# Version 1.4.2
+# *** Agrega parametro envio invoice xml data order_ref
+
+# Version 1.4.3
+# *** Fix error on product mapping writing string clears product_id field
+
+# Version 1.4.4
+# *** Fix error consulta stock reporte
+
+# Version 1.4.5
+# *** Update validation for duplicated orders with order_id and channel_id

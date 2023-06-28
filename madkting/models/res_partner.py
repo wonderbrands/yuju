@@ -137,6 +137,7 @@ class ResPartner(models.Model):
 
     @api.model
     def update_mapping_fields(self, customer_data):
+        logger.debug("MAIN UPDATE MAPPING")
         customer_data = self.env['yuju.mapping.field'].update_mapping_fields(customer_data, 'res.partner')
         return customer_data
 
@@ -192,7 +193,7 @@ class ResPartner(models.Model):
         except Exception as ex:
             return results.error_result(
                 code='create_costumer_error',
-                description='Error trying to create new costumer: {}'.format(ex)
+                description='Error trying to create new costumer address: {}'.format(ex)
             )
         else:
             data = {'id': new_address.id}

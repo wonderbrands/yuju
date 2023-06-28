@@ -3,12 +3,16 @@
 
 
 class ComponentException(Exception):
-    """ Base Exception for the components """
+    """Base Exception for the components"""
 
 
 class NoComponentError(ComponentException):
-    """ No component has been found """
+    """No component has been found"""
 
 
 class SeveralComponentError(ComponentException):
-    """ More than one component have been found """
+    """More than one component have been found"""
+
+
+class RegistryNotReadyError(ComponentException):
+    """Component registry not ready yet for given DB."""

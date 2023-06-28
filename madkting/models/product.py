@@ -71,7 +71,7 @@ class ProductProduct(models.Model):
         :type product_id: int
         :return:
         :rtype: dict
-        """     
+        """        
         for product in self:
             if not product.id_product_madkting:
                 product.message_post(body="Error al lanzar webhook: El producto no esta mapeado con Yuju")
@@ -85,11 +85,11 @@ class ProductProduct(models.Model):
             except Exception as ex:
                 logger.debug("###Exception Ocurred on Sending Webhook")
                 logger.debug(ex)        
-            
+                
         return results.success_result()
 
     @api.model
-    def send_webhook_all(self, company_id=None):
+    def send_webhook_all(self, company_id):
         """
         :param product_id:
         :type product_id: int
@@ -101,9 +101,6 @@ class ProductProduct(models.Model):
         if not product_ids:
             return results.error_result('product_not_found',
                                         'product_id not found')
-
-            if not company_id:
-                company_id = self.env.user.company_id.id 
 
         for product in product_ids:
             try:
@@ -125,18 +122,12 @@ class ProductProduct(models.Model):
                 for location in config.stock_source_multi.split(','):
                     location_id = int(location)
                     qty_in_branch = product.with_context({"location" : location_id}).free_qty
-                    # if product.id_product_madkting in product_data:
-                    #     product_data[str(product.id_product_madkting)][str(location_id)] = qty_in_branch
-                    # else:
-                    #     product_data[str(product.id_product_madkting)] = {
-                    #         str(location_id) : qty_in_branch
-                    #     }
                     stock_product += qty_in_branch
                 product_data.append({
                     "product_id" : str(product.id_product_madkting),
                     "sku" : product.default_code,
                     "price" : product.lst_price,
-                    "stock" : qty_in_branch
+                    "stock" : stock_product
                 })                
         
         logger.debug("## STOCK DATA ##")
@@ -203,6 +194,11 @@ class ProductProduct(models.Model):
                 pass
 
     @api.model
+    def update_mapping_fields(self, product_data):
+        product_data = self.env['yuju.mapping.field'].update_mapping_fields(product_data, 'product.product')
+        return product_data
+
+    @api.model
     def update_product(self, product_data, product_type, id_shop=None):
         """
         :param product_data:
@@ -254,7 +250,7 @@ class ProductProduct(models.Model):
             id_product_madkting = product_data.get('id_product_madkting')
             default_code = product_data.get('default_code')
             mapping_data = {     
-                'product_id' : product_id,
+                'product_id' : int(product_id),
                 'id_product_yuju' : id_product_madkting,
                 'id_shop_yuju' : id_shop,
                 'default_code' : default_code,
@@ -272,14 +268,16 @@ class ProductProduct(models.Model):
                                                 description='Product mapping couldn\'t be created because '
                                                             'of the following exception: {}'.format(ex))
 
-        if 'l10n_mx_edi_code_sat_id' in fields_validation['data']:
-            sat_code = fields_validation['data']['l10n_mx_edi_code_sat_id']
-            sat_code_ids = self.env['l10n_mx_edi.product.sat.code'].search([('code', '=', sat_code)], limit=1)
-            if sat_code_ids:
-                fields_validation['data']['l10n_mx_edi_code_sat_id'] = sat_code_ids[0].id
-            else:
-                fields_validation.pop('l10n_mx_edi_code_sat_id')
-                fields_validation['data'].pop('l10n_mx_edi_code_sat_id')
+        # if 'l10n_mx_edi_code_sat_id' in fields_validation['data']:
+        #     sat_code = fields_validation['data']['l10n_mx_edi_code_sat_id']
+        #     sat_code_ids = self.env['l10n_mx_edi.product.sat.code'].search([('code', '=', sat_code)], limit=1)
+        #     if sat_code_ids:
+        #         fields_validation['data']['l10n_mx_edi_code_sat_id'] = sat_code_ids[0].id
+        #     else:
+        #         fields_validation.pop('l10n_mx_edi_code_sat_id')
+        #         fields_validation['data'].pop('l10n_mx_edi_code_sat_id')
+
+        fields_validation['data'] = self.update_mapping_fields(fields_validation['data'])
 
         if 'image' in fields_validation['data']:
             fields_validation['data']['image_1920'] = fields_validation['data'].pop('image', None)
@@ -369,7 +367,7 @@ class ProductProduct(models.Model):
         # Si se realiza un mapeo a un catalogo que ya esta mapeado actualmente, el formulario tendra el campo company_id
         # con un valor establecido, lo cual para efectos del modulo multi shop, el catalogo de productos sera compartido
         # por lo que el campo company_id se establecera como False
-        if is_multi_shop and product.company_id:
+        if is_multi_shop and config.product_shared_catalog_enabled and product.company_id:
             fields_validation['data']['company_id'] = False
         
         logger.debug("#### DATA TO WRITE ####")

@@ -7,7 +7,7 @@ please refer to our website.
 >https://yuju.io
 
 ### version
-15.0.0
+16.0.0
 
 ### Installation
 1. This module depends on _Components Events_ which is part of [_Connector Framework_](http://odoo-connector.com/). In order to install this

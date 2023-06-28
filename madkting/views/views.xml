@@ -50,7 +50,8 @@
       <field name="arch" type="xml">
         <tree string="Configuration" >
           <field name="webhook_stock_enabled"/>
-          <field name="stock_source"/>
+          <field name="stock_source_multi"/>
+          <field name="company_id"/>
         </tree>
       </field>
     </record>
@@ -63,6 +64,9 @@
         <form string="Configuration" >
           <group>
             <group>
+              <separator string="General"/>
+              <field name="company_id"/>
+
               <separator string="Webhooks"/>
               <field name="webhook_stock_enabled"/>
               <field name="stock_source"/>
@@ -85,12 +89,25 @@
               <field name="validate_id_exists"/>
               <field name="log_enabled"/>
 
+              <separator string="Facturas"/>
+              <field name="invoice_webhook_enabled"/>
+              <field name="invoice_doc_type" attrs="{'required' : [('invoice_webhook_enabled', '=', True)], 'invisible' : [('invoice_webhook_enabled', '=', False)]}"/>
+              <field name="invoice_prefix_file" attrs="{'required' : [('invoice_webhook_enabled', '=', True)], 'invisible' : [('invoice_webhook_enabled', '=', False)]}"/>
+              <field name="invoice_mimetype_file" attrs="{'required' : [('invoice_webhook_enabled', '=', True)], 'invisible' : [('invoice_webhook_enabled', '=', False)]}"/>
+              <field name="invoice_url" attrs="{'required' : [('invoice_webhook_enabled', '=', True)], 'invisible' : [('invoice_webhook_enabled', '=', False)]}"/>
+              <field name="invoice_country" attrs="{'required' : [('invoice_webhook_enabled', '=', True)], 'invisible' : [('invoice_webhook_enabled', '=', False)]}"/>
+              <field name="invoice_currency" attrs="{'required' : [('invoice_webhook_enabled', '=', True)], 'invisible' : [('invoice_webhook_enabled', '=', False)]}"/>
+              <field name="invoice_separator" attrs="{'invisible' : [('invoice_webhook_enabled', '=', False)]}"/>
+              <field name="invoice_serie" attrs="{'invisible' : [('invoice_webhook_enabled', '=', False)]}"/>
+              <field name="invoice_partner_vat" attrs="{'invisible' : [('invoice_webhook_enabled', '=', False)]}"/>
+
               <separator string="Ventas"/>
               <field name="orders_unconfirmed"/>
               <field name="orders_unconfirmed_by_stock"/>
               <field name="orders_unconfirmed_by_ff_type"/>
               <field name="orders_unconfirmed_stock_src"/>
               <field name="orders_unconfirmed_ff_types"/>
+              <field name="order_remove_tax_default"/>
               <field name="update_parent_list_price"/>
               <field name="simple_description_enabled"/>
               <field name="update_partner_name"/>
@@ -103,6 +120,7 @@
 
               <separator string="Productos"/>
               <field name="product_custom_fields"/>
+              <field name="product_shared_catalog_enabled" />
             </group>
           </group>
         </form>
@@ -242,7 +260,8 @@
             </group>
             <group>
               <field name="model"/>          
-              <field name="fieldtype"/>          
+              <field name="fieldtype"/>    
+              <field name="model_relation" attrs="{'invisible' : [('fieldtype', '!=', 'relation')]}"/>         
             </group>
           </group>
           <notebook>
@@ -299,6 +318,8 @@
         <tree string="Yuju Mapping Custom">
           <field name="name"/>         
           <field name="value"/>         
+          <field name="value_type"/>         
+          <field name="modelo"/>         
         </tree>
       </field>
     </record>
@@ -312,9 +333,11 @@
           <group>
             <group>
               <field name="name"/>        
+              <field name="value"/>  
             </group>
             <group>
-              <field name="value"/>        
+              <field name="modelo"/>
+              <field name="value_type"/>
             </group>
           </group>
           <notebook>
@@ -420,6 +443,10 @@
       <field name="model">sale.order</field>
       <field name="inherit_id" ref="sale.view_order_form"/>
       <field name="arch" type="xml">
+        <xpath expr="//button[@name='action_cancel']" position="after">
+          <button name="test_get_invoice_xml" type="object" string="Test Get invoice XML" class="oe_highlight"/>
+          <button name="test_send_invoice_xml" type="object" string="Test Send invoice XML" class="oe_highlight"/>
+        </xpath>
         <field name="client_order_ref" position="after">
           <separator string="Yuju"/>
           <field name="channel" attrs="{'readonly':[(1,'=',1)]}"/>
@@ -436,6 +463,7 @@
           <field name="yuju_payment_date_order" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="fulfillment" attrs="{'readonly':[(1,'=',1)]}"/>
           <field name="channel_order_reference" />
+          <field name="channel_order_id" />
           <button name="tiene_stock" string="Validar stock" type="object" class="oe_highlight" groups="madkting.madkting_api_group"/>
           <!-- <field name="channel_order_reference" attrs="{'readonly':[(1,'=',1)]}" /> -->
           <field name="yuju_url_label" attrs="{'readonly':[(1,'=',1)]}" />
@@ -465,7 +493,6 @@
           <field name="id_product_madkting" groups="madkting.madkting_api_group"/>
           <field name="tipo_producto_yuju"/>
           <button name="send_webhook" string="Enviar Webhook" type="object" class="oe_highlight" groups="madkting.madkting_api_group"/>
-          <!-- <button name="show_qty" type="object" string="Mostrar cantidad" class="oe_highlight"/> -->
         </field>
       </field>
     </record>

@@ -15,7 +15,7 @@ mad_res_company,madkting res.company,base.model_res_company,madkting_api_group,1
 mad_res_config_settings,madkting res.config.settings,base.model_res_config_settings,madkting_api_group,1,0,0,0
 mad_stock_warehouse,madkting stock.warehouse,stock.model_stock_warehouse,madkting_api_group,1,1,1,1
 mad_stock_quant,madkting stock.quant,stock.model_stock_quant,madkting_api_group,1,0,0,0
-mad_stock_location_route,madkting stock.location.route,stock.model_stock_location_route,madkting_api_group,1,0,0,0
+mad_stock_route,madkting stock.route,stock.model_stock_route,madkting_api_group,1,0,0,0
 mad_stock_rule,madkting stock.rule,stock.model_stock_rule,madkting_api_group,1,0,0,0
 mad_res_users,madkting res.users,base.model_res_users,madkting_api_group,1,0,0,0
 mad_account_payment_term,madkting account.payment.term,account.model_account_payment_term,madkting_api_group,1,0,0,0

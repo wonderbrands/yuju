@@ -5,14 +5,18 @@
     "name": "Components",
     "summary": "Add capabilities to register and use decoupled components,"
     " as an alternative to model classes",
-    "version": "13.0.1.0.1",
+    "version": "16.0.1.1.0",
     "author": "Camptocamp," "Odoo Community Association (OCA)",
     "website": "https://github.com/OCA/connector",
     "license": "LGPL-3",
     "category": "Generic Modules",
     "depends": ["base"],
-    "external_dependencies": {"python": ["cachetools"]},
+    "external_dependencies": {
+        "python": [
+            "cachetools",
+        ]
+    },
     "installable": True,
-    "development_status": "Stable",
+    "development_status": "Production/Stable",
     "maintainers": ["guewen"],
 }

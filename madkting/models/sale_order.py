@@ -3,6 +3,7 @@
 # Author:         Israel Calderón
 # Copyright:      (C) 2019 All rights reserved by Madkting
 # Created:        2019-03-20
+import requests
 
 from odoo import models, fields, api
 from odoo import exceptions
@@ -22,14 +23,14 @@ class SaleOrder(models.Model):
     yuju_shipping_id = fields.Char('Yuju Shipping Id')
     yuju_seller_id = fields.Char('Yuju Seller Id')
     yuju_marketplace_fee = fields.Float("Marketplace Fee")
-    yuju_seller_shipping_cost = fields.Float("Seller Shipping Cost Yuju")
+    yuju_seller_shipping_cost = fields.Float("Seller Shipping Cost")
     yuju_carrier_tracking_ref = fields.Char("Numero de Guia")
     yuju_update_date_order = fields.Char("Fecha Actualizacion Yuju")
     yuju_payment_date_order = fields.Char("Fecha Acreditacion Pago")
 
     fulfillment = fields.Selection([
-        ('fbf', 'Flex'),
         ('mix', 'Mix'),
+        ('fbf', 'Flex'),
         ('fbm', 'Seller'),
         ('fbc', 'Full'),
         ], string="Fulfillment")
@@ -44,11 +45,21 @@ class SaleOrder(models.Model):
     payment_status = fields.Char('Payment Status')
     payment_id = fields.Integer('Pago Id')
 
+    def _update_mapping_fields(self, order_data):
+        order_data = self.env['yuju.mapping.field'].update_mapping_fields(order_data, 'sale.order')
+        return order_data
+
     def _update_custom_values(self, fulfillment, channel_id):
         logger.debug("## CUSTOM VALUES FOR ORDERS ##")
-        customs = self.env['yuju.mapping.custom'].update_custom_values(fulfillment, channel_id)
+        customs = self.env['yuju.mapping.custom'].update_custom_values(fulfillment, channel_id, modelo='sales')
         logger.debug(customs)
         return customs
+
+    def _get_defect_values(self, modelo='sales'):
+        logger.debug("## DEFAULT VALUES FOR ORDERS ##")
+        defaults = self.env['yuju.mapping.custom'].get_defect_values(modelo)
+        logger.debug(defaults)
+        return defaults
 
     @api.model
     def mdk_create(self, order_data, **kwargs):
@@ -88,7 +99,7 @@ class SaleOrder(models.Model):
                     'product_uom': int,
                     'qty_delivered_method': str, #'stock_move'
                     'qty_delivered': float,
-                    'qty_delivered_manual': float,
+                    # 'qty_delivered_manual': float,
                     'qty_to_invoice': float,
                     'qty_invoiced': float,
                     'untaxed_amount_invoiced': float,
@@ -171,6 +182,8 @@ class SaleOrder(models.Model):
                 return results.error_result(code='sale_config_dropship_error',
                                             description='No config routes found for dropship')   
 
+        order_data = self._update_mapping_fields(order_data)
+
         logger.debug("## FIELD ERRORS ##")
         field_errors = self._validate_order_fields(order_data=order_data)
         logger.debug(field_errors)
@@ -189,8 +202,12 @@ class SaleOrder(models.Model):
         logger.debug("### ORDER DATA ###")
         logger.debug(order_data)
 
-        if order_data.get('channel_order_reference'):
-            order_exists = self.search([('channel_order_reference', '=', order_data.get("channel_order_reference"))], limit=1)
+        if order_data.get('channel_order_id') and order_data.get('channel_id'):
+            _channel_id = order_data.get('channel_id')
+            _channel_order_id = order_data.get('channel_order_id')
+            _ff_type = order_data.get('fulfillment')
+            domain = [('channel_order_id', '=', _channel_order_id), ('channel_id', '=', _channel_id), ("fulfillment", "=", _ff_type)]
+            order_exists = self.search(domain, limit=1)
             if not force_creation and order_exists:
                 logger.debug("### ORDER EXISTS {} ###".format(order_data.get("channel_order_reference")))
                 
@@ -238,7 +255,6 @@ class SaleOrder(models.Model):
                 logger.debug("## ORDER DATA CUSTOM ###")
                 order_data.update(custom_data)
                 logger.debug(order_data)
-
         try:
             new_sale = self.create(order_data)
 
@@ -274,6 +290,16 @@ class SaleOrder(models.Model):
         else:
             order_line_model = self.env['sale.order.line']
             for line in lines:
+                
+                # Clear fields odoo V16
+                logger.info("## Clear fields Odoo 16 ##")
+                logger.info(order_data)
+                remove_line_fields = ['qty_delivered_manual']
+                for field in remove_line_fields:
+                    if field in line:
+                        logger.info(f"## Remove field ## {field}")
+                        line.pop(field)
+
                 product_tax_rate = line.pop('tax_rate', False)
                 line['order_id'] = new_sale.id
                 line['state'] = 'draft'
@@ -353,7 +379,7 @@ class SaleOrder(models.Model):
                                                                       limit=1)
                         new_line.tax_id = tax_cache.get(product_tax_rate)
 
-                    if new_line.tax_id and not tax_rate and not set_tax_rate_by_product:
+                    if new_line.tax_id and config.order_remove_tax_default and not tax_rate and not set_tax_rate_by_product:
                         logger.info(
                             "Se quitan impuestos por default si no se recibe impuesto desde Yuju")
                         new_line.tax_id = [(6, 0, [])]
@@ -387,7 +413,7 @@ class SaleOrder(models.Model):
         self.ensure_one()
         data = self.copy_data()[0]
         data['lines'] = list()
-        extra_fields = ['id', 'name', 'amount_total', 'amount_tax',
+        extra_fields = ['id', 'name', 'state', 'amount_total', 'amount_tax',
                         'amount_undiscounted', 'amount_untaxed',
                         'invoice_ids', 'picking_ids']
 
@@ -395,7 +421,7 @@ class SaleOrder(models.Model):
                              'price_tax', 'price_total', 'price_reduce',
                              'price_reduce_taxinc', 'price_reduce_taxexcl',
                              'qty_delivered_method', 'qty_delivered',
-                             'qty_delivered_manual', 'qty_to_invoice',
+                             'qty_to_invoice',
                              'qty_invoiced', 'untaxed_amount_invoiced',
                              'untaxed_amount_to_invoice', 'salesman_id',
                              'currency_id', 'company_id', 'order_partner_id']
@@ -464,6 +490,8 @@ class SaleOrder(models.Model):
         location = order.warehouse_id.lot_stock_id
         for line in order.order_line:
             product = line.product_id
+            if product.detailed_type != 'product':
+                continue
             stock_product = self._has_stock(product, location)
             if not stock_product:
                 post_message = f"Error trying to confirm order, product {product.default_code} insufficient stock 0, Location: {location.name}."
@@ -480,8 +508,8 @@ class SaleOrder(models.Model):
         config = self.env['madkting.config'].get_config()
         to_confirm = True
         if config.orders_unconfirmed_by_stock:
-            to_confirm = self._valida_stock_productos(order)
-        
+            to_confirm = self._valida_stock_productos(order)  
+
         if to_confirm and config.orders_unconfirmed_by_ff_type:
             logger.debug("Valida tipo de Fulfillment para confirmar la orden")
             fulfillments = config.orders_unconfirmed_ff_types.split(',')
@@ -493,7 +521,7 @@ class SaleOrder(models.Model):
                     to_confirm = False
                     post_message = f"El tipo de fulfillment es [{order.fulfillment}], no se confirma la orden"
                     order.message_post(body=post_message)
-
+                              
         if to_confirm:
             order.action_confirm()
 
@@ -650,9 +678,9 @@ class SaleOrder(models.Model):
             if current_delivery.state == 'assigned':
                 logger.debug('assigned')
                 try:
-                    for line in current_delivery.move_lines.sudo():
+                    for line in current_delivery.move_line_ids.sudo():
                         line.sudo().write({
-                            'quantity_done': line.product_uom_qty
+                            'qty_done': line.reserved_uom_qty
                         })
                     current_delivery.button_validate()
                 except Exception as e:
@@ -806,6 +834,8 @@ class SaleOrder(models.Model):
         if order.state not in ['sale', 'done']:
             return results.error_result(code='sale_not_confirmed',
                                         description='order {} is not confirmed'.format(order_id))
+
+        config = self.env['madkting.config'].get_config()
         
         order.ensure_one()
 
@@ -835,60 +865,248 @@ class SaleOrder(models.Model):
             return results.error_result(code='invoice_create_error',
                                         description='The sale order cannot be invoiced because of '
                                                     'the following exception: {}'.format(ex))
-        else:
-            
-            update_custom_values = self.env['yuju.mapping.field'].update_mapping_fields({}, 'account.move')
-            if update_custom_values:
-                logger.info(f'Hay campos que actualizar en la factura {update_custom_values}')
-                invoice.write(update_custom_values)
-
+        else:            
             invoice.ensure_one()
-            invoice.action_post()
+            defaults = self._get_defect_values('invoices')        
+            if defaults:
+                try:
+                    logger.debug("## DEFAULT INVOICES ###")
+                    logger.debug(defaults)
+                    invoice.update(defaults)
+                except Exception as e:
+                    logger.exception(f'Error al actualizar los datos de la factura: {e}')
+                    return results.error_result(code='invoice_create_error',
+                                        description='The sale order cannot be invoiced because of '
+                                                    'the following exception: {}'.format(e))            
+            try:
+                invoice.action_post()
+            except Exception as e:
+                logger.exception(f'Error al actualizar los datos de la factura: {e}')
+                return results.error_result(code='invoice_confirm_error',
+                                    description='The sale order invoice cannot be confirmed because of '
+                                                'the following exception: {}'.format(e))
+
             invoice_data = invoice.copy_data()[0]
             invoice_data['id'] = invoice.id
             invoice_data['name'] = invoice.name
             invoice_data['state'] = invoice.state
 
+            if config.invoice_webhook_enabled:
+                order.add_invoice_message()
+
             return results.success_result(data=invoice_data)
 
-            # if order.payment_id:
-            #     logger.debug("Order already with payment...")
-            #     try:
-            #         payment = self.env['account.payment'].search([('id', '=', order.payment_id)], limit=1)
-            #         if payment and payment.state == 'posted':
-            #             logger.debug("Payment already posted...")
-            #             payment.action_draft()
-            #         payment.invoice_ids = [invoice.id]
-            #         payment.post()
-            #     except exceptions.AccessError as err:
-            #         return results.error_result(
-            #             code='access_error',
-            #             description=str(err)
-            #         )
-            #     except Exception as ex:
-            #         logger.exception(ex)
-            #         return results.error_result(
-            #             code='payment_post_error',
-            #             description='Payment {} couldn\'t be posted because of the '
-            #                         'following error: {}'.format(payment.id, ex)
-            #         )
-                
-            #     try:
-            #         invoice.action_invoice_paid()
-            #     except exceptions.AccessError as err:
-            #         return results.error_result(
-            #             code='access_error',
-            #             description=str(err)
-            #         )
-            #     except Exception as ex:
-            #         logger.exception(ex)
-            #         return results.error_result(
-            #             code='invoice_update_payed',
-            #             description='Error updating invoice to payed: {}'.format(ex)
-            #         )          
-            #     return results.success_result(data=invoice_data)
-            # else:
-            #     return results.success_result(data=invoice_data)
+    def test_send_invoice_xml(self):
+        logger.info("TESTING SEND XML")
+        for rec in self:
+            res = rec.add_invoice_message()
+            logger.info(res)
+
+    def add_invoice_message(self):
+
+        config = self.env['madkting.config'].get_config()
+
+        if not config.invoice_webhook_enabled:
+            return
+
+        logger.info("PREPARING MESSAGE")
+
+        order_id = self.id
+        id_shop = self.yuju_shop_id
+        id_order = self.channel_order_id
+        id_channel_order = self.channel_id
+
+        if not id_order or not id_shop or not id_channel_order:
+            err_msg = "Some data are empty, please validate id_shop, id_order, id_channel"
+            logger.error(err_msg)
+            self.message_post(body=err_msg)
+            return
+        
+        data = {
+            "id_shop" : id_shop,
+            "id_channel" : 2301,
+            "id_order" : id_order,
+            "id_channel_order" : id_channel_order,
+            "order_id" : order_id
+        }
+
+        logger.info(data)
+
+        url = config.invoice_url
+        
+        try:
+            requests.post(url, json=data)
+        except Exception as e:
+            logger.error(f"Ocurrio un error al enviar el mensaje {e}")
+            self.message_post(body=f"Error al lanzar el Webhook de factura {e}")
+        else:
+            self.message_post(body="Se ha enviado webhook de factura")
+        
+    def test_get_invoice_xml(self):
+        logger.info("TESTING GET XML")
+        for rec in self:
+            res = self.get_invoice_xml(rec.id)
+            logger.info(res)
+
+    @api.model
+    def get_invoice_xml(self, order_id):
+
+        logger.info("Get factura xml..")
+        invoice_data = None
+
+        if not order_id:
+            return results.error_result(code='order_id_required',
+                                        description='order_id is required')
+        
+        order = self.search([('id', '=', int(order_id))])
+
+        if not order:
+            return results.error_result(code='sale_not_exists',
+                                        description='order {} doesn\'t exists'.format(order_id))
+
+        order.ensure_one()
+
+        if not order.invoice_ids:
+            err_msg = 'order {} is not invoiced'.format(order_id)
+            order.message_post(body=err_msg)
+            return results.error_result(code='sale_not_invoiced',
+                                        description=err_msg)
+        
+        config = self.env['madkting.config'].get_config()
+
+        if not config.invoice_prefix_file:
+            err_msg = 'Invoice prefix is undefined in config'
+            order.message_post(body=err_msg)
+            return results.error_result(code='invoice_prefix_file_undefined',
+                                        description=err_msg)
+
+        if not config.invoice_mimetype_file:
+            err_msg = 'Invoice mimetype is undefined in config'
+            order.message_post(body=err_msg)
+            return results.error_result(code='invoice_mimetype_file_undefined',
+                                        description=err_msg)
+
+        if not config.invoice_url:
+            err_msg = 'Invoice URL is undefined in config'
+            order.message_post(body=err_msg)
+            return results.error_result(code='invoice_url_undefined',
+                                        description=err_msg)
+
+        if not config.invoice_country:
+            err_msg = 'Invoice Country is undefined in config'
+            order.message_post(body=err_msg)
+            return results.error_result(code='invoice_country_undefined',
+                                        description=err_msg)
+
+        if not config.invoice_currency:
+            err_msg = 'Invoice Currency is undefined in config'
+            order.message_post(body=err_msg)
+            return results.error_result(code='invoice_currency_undefined',
+                                        description=err_msg)        
+
+        for invoice in order.invoice_ids:
+
+            if not invoice.state == "posted":
+                logger.info("Invoice not posted, continue")
+                continue
+
+            if not invoice.attachment_ids:
+                err_msg = 'order {} is not invoiced with files attached'.format(order_id)
+                order.message_post(body=err_msg)
+                return results.error_result(code='sale_not_invoiced_files',
+                                        description=err_msg)
+            
+            if not invoice.partner_id.vat and not config.invoice_partner_vat:
+                err_msg = 'order {} invoice partner vat undefined'.format(order_id)
+                order.message_post(body=err_msg)
+                return results.error_result(code='sale_invoice_partner_vat_undefined',
+                                        description=err_msg)
+
+            partner_vat = invoice.partner_id.vat
+            if not partner_vat:
+                partner_vat = config.invoice_partner_vat
+
+            # Son requeridos!!
+            file_mimetype = config.invoice_mimetype_file
+            file_prefix = config.invoice_prefix_file
+
+            if not file_mimetype:
+                file_mimetype = "application/xml"            
+
+            invoice_has_xml = False
+            attachment_file = None
+            for attach in invoice.attachment_ids:
+                logger.info(attach.name)
+                logger.info(attach.mimetype)
+                if attach.mimetype == file_mimetype:
+                    if file_prefix:
+                        if attach.name.startswith(file_prefix):
+                            invoice_has_xml = True
+                            base64_str = attach.datas.decode()
+                            attachment_file = base64_str
+                            break
+                        else:
+                            continue
+                    else:
+                        invoice_has_xml = True
+                        base64_str = attach.datas.decode()
+                        attachment_file = base64_str
+                        break
+
+            if not invoice_has_xml or not attachment_file:
+                logger.error(f"No se encontro archivos adjuntos con prefijo [{file_prefix}], tipo: [{file_mimetype}]")
+                err_msg = 'order {} is not invoiced with xml'.format(order_id)
+                order.message_post(err_msg)
+                return results.error_result(code='sale_not_invoiced_xml',
+                                        description=err_msg)
+
+            order.message_post(body="Obtiene datos de la factura")
+            
+            invoice_data = {
+                "attachment" : attachment_file
+            }
+            
+            separator = config.invoice_separator
+            if not separator:
+                logger.info("Invoice separator not defined, using default: /")
+                separator = " "
+
+            invoice_name = invoice.name
+            name_pieces = invoice_name.split(separator)
+            
+            if len(name_pieces) > 1:
+                idx_folio = len(name_pieces) - 1
+                folio = name_pieces[idx_folio]
+                invoice_data["folio"] = int(folio)
+
+            serie = config.invoice_serie
+            if not serie:
+                logger.info("Invoice serie not defined, using default: A")
+                serie = "A"
+
+            invoice_data["serie"] = serie
+            invoice_data["country"] = config.invoice_country
+            invoice_data["currency"] = config.invoice_currency
+            invoice_data["document_type"] = config.invoice_doc_type
+            invoice_data["invoice_date"] = invoice.invoice_date.strftime("%Y-%m-%dT00:00:00")
+            invoice_data["name"] = invoice.partner_id.name
+            invoice_data["taxid"] = partner_vat
+            invoice_data["subtotal"] = invoice.amount_untaxed
+            invoice_data["iva"] = invoice.amount_tax
+            invoice_data["total"] = invoice.amount_total
+            invoice_data["order_ref"] = order.channel_order_reference
+
+            invoice_data["items"] = []
+
+            for line in invoice.invoice_line_ids:
+                invoice_data["items"].append({
+                    "sku" : line.product_id.default_code
+                })
+
+            logger.info(invoice_data)
+            break
+
+        return results.success_result(data=invoice_data)
 
     def _concilia_factura_pago(self, payment, factura):
         credit_line = None

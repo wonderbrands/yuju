@@ -19,7 +19,7 @@ from ..core import EventWorkContext
 
 
 class Base(models.AbstractModel):
-    """ The base model, which is implicitly inherited by all models.
+    """The base model, which is implicitly inherited by all models.
 
     Add an :meth:`_event` method to all Models. This method allows to
     trigger events.
@@ -37,7 +37,7 @@ class Base(models.AbstractModel):
     _inherit = "base"
 
     def _event(self, name, collection=None, components_registry=None):
-        """ Collect events for notifications
+        """Collect events for notifications
 
         Usage::
 
@@ -63,6 +63,9 @@ class Base(models.AbstractModel):
 
         """
         dbname = self.env.cr.dbname
+        components_registry = self.env.context.get(
+            "components_registry", components_registry
+        )
         comp_registry = components_registry or _component_databases.get(dbname)
         if not comp_registry or not comp_registry.ready:
             # No event should be triggered before the registry has been loaded

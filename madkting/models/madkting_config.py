@@ -14,6 +14,7 @@ class MadktingConfig(models.Model):
     _name = 'madkting.config'
     _description = 'Config'
 
+    company_id = fields.Many2one('res.company', 'Company')
     stock_quant_available_quantity_enabled = fields.Boolean('Mostrar cantidad disponible', default=False)
     stock_source = fields.Many2one('stock.location', string="Ubicacion de Stock", domain=[('usage', '=', 'internal')])
     stock_source_multi = fields.Char('Multi Stock Src')
@@ -36,18 +37,31 @@ class MadktingConfig(models.Model):
     orders_force_cancel = fields.Boolean('Cancela ordenes con movimientos', help='Si esta habilitada las ordenes se cancelan incluso si tienen movimientos de almacen realizados.', default=False)
     orders_line_warehouse_enabled = fields.Boolean('Asigna almacen a las lineas de venta', help='Si esta habilitada se asigna el mismo almacen de la orden a las lineas de venta.', default=False)
     order_disable_update_empty_fields = fields.Char('Campos que no se actualizan si estan vacios')
+    order_remove_tax_default = fields.Boolean('Quitar impuestos default', help='Quita los impuestos default de las lineas de la venta')
+    
+    invoice_separator = fields.Char(string="Separador Serie y Folio", help='Indica el separador para acotar la serie y el folio de la factura')
+    invoice_serie = fields.Char(string="Serie de la factura", help='Si esta definida, se utiliza como serie por default para la factura')
+    invoice_partner_vat = fields.Char(string="RFC Cliente de las facturas", help='Si esta definido, se utiliza como VAT/RFC/TAXID por default para la factura')
+    invoice_prefix_file = fields.Char(string="Prefijo del archivo", help='Se utiliza para identificar el archivo que va a procesarse por el modulo')
+    invoice_mimetype_file = fields.Char(string="Tipo de archivo", help='Se utiliza para identificar el Mimetype del archivo que va a procesarse por el modulo')
+    invoice_country = fields.Char(string="Codigo de Pais", help='Pais donde se esta emitiendo la factura (ISO 3166-1 alpha-3)')
+    invoice_currency = fields.Char(string="Codigo de Moneda", help='Moneda utilizada para facturar (ISO 4227)')
+    invoice_url = fields.Char(string="Url servicio")
+    invoice_doc_type = fields.Selection([('ticket', "Nota/Boleta"), ("invoice", "Factura")], default="ticket", string="Tipo de documento")
+    invoice_webhook_enabled = fields.Boolean(string="Enviar webhook de facturas")
 
     log_enabled = fields.Boolean('Habilitar log')
 
     dropship_enabled = fields.Boolean('Dropshiping Enabled')
     dropship_webhook_enabled = fields.Boolean('Dropshiping Webhook Enabled')
     dropship_stock_enabled = fields.Boolean('Stock Dropshiping Enabled')
-    dropship_default_route_id = fields.Many2one('stock.location.route', string='Ruta Default para Dropshiping')
-    dropship_route_id = fields.Many2one('stock.location.route', string='Ruta para Dropshiping')
-    dropship_mto_route_id = fields.Many2one('stock.location.route', string='Ruta para MTO')
+    dropship_default_route_id = fields.Many2one('stock.route', string='Ruta Default para Dropshiping')
+    dropship_route_id = fields.Many2one('stock.route', string='Ruta para Dropshiping')
+    dropship_mto_route_id = fields.Many2one('stock.route', string='Ruta para MTO')
     dropship_picking_type = fields.Many2one('stock.picking.type', string='Dropship Picking Type')
 
     validate_partner_exists = fields.Boolean('Buscar Partner', help="Valida si existe el partner en odoo antes de crearlo")
+    product_shared_catalog_enabled = fields.Boolean("Catalogo de productos compartido", default=False)
     
     @api.model
     def create_config(self, configs):
@@ -104,12 +118,18 @@ class MadktingConfig(models.Model):
 
     def get_config(self):
         """
-        At this moment the configuration works as a unique record in config table.
-        That is the reason for the following query
-        it is assumed that there is only one configuration record
+        Actualiza metodo para obtener configuracion de acuerdo al company del usuario
         :return:
         """
-        return self.search([], limit=1)
+        logger.debug("## GET CONFIG BY COMPANY ##")
+        company_id = self.env.user.company_id.id
+        logger.debug(company_id)
+        config_id = self.search([("company_id", "=", company_id)], limit=1)
+        if not config_id:
+            logger.debug("No se encontro config por company")
+            config_id = self.search([], limit=1)
+        logger.debug(config_id)
+        return config_id
 
 
 class MadktingWebhook(models.Model):

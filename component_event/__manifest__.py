@@ -3,9 +3,9 @@
 
 {
     "name": "Components Events",
-    "version": "13.0.1.0.1",
+    "version": "16.0.1.0.1",
     "author": "Camptocamp," "Odoo Community Association (OCA)",
-    "website": "http://odoo-connector.com",
+    "website": "https://github.com/OCA/connector",
     "license": "LGPL-3",
     "category": "Generic Modules",
     "depends": ["component"],

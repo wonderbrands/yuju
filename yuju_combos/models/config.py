@@ -14,7 +14,7 @@ class MadktingConfig(models.Model):
     _inherit = 'madkting.config'
     _description = 'Config'
 
-    mrp_route = fields.Many2one('stock.location.route', string='Ruta para Fabricacion')
+    mrp_route = fields.Many2one('stock.route', string='Ruta para Fabricacion')
     delete_old_bom = fields.Boolean('Eliminar Ldm anterior')
     search_kit_by_sku = fields.Boolean('Buscar componente por SKU', default=True)
     update_product_type_kits = fields.Boolean('Modificar tipo de producto para combos', default=True)
