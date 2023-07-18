@@ -219,7 +219,7 @@ class ProductTemplate(models.Model):
     @api.model
     def mdk_create(self, product_data, id_shop=None):
 
-        logger.debug("### MDK CREATE ###")
+        logger.debug("### MDK CREATE COMBO ###")
         logger.debug(product_data)
 
         products = self.env['product.product']
@@ -257,7 +257,7 @@ class ProductTemplate(models.Model):
                     is_combo = True
                     var.pop('is_combo')
                     var.pop('combo_components')
-                    variation_list.append(var)
+                variation_list.append(var)
             product_data.update({'variations' : variation_list})            
     
         res = super(ProductTemplate, self).mdk_create(product_data, id_shop)
