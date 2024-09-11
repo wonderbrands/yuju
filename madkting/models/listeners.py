@@ -36,7 +36,14 @@ class MadktingStockMoveListener(Component):
         :param record:
         :return:
         """
-        config = self.env['madkting.config'].sudo().get_config()
+        if isinstance(record, bool):
+            return
+        
+        company_id = None
+        if record and record.company_id:
+            company_id = record.company_id.id
+
+        config = self.env['madkting.config'].sudo().get_config(company_id)
 
         # logs("LISTENER STOCK MOVE", config)
         # logs(record, config)
@@ -50,10 +57,10 @@ class MadktingStockMoveListener(Component):
         # logs(record_product, config)
         record_product_yuju = getattr(record_product, 'id_product_madkting', None)
         # logs(record_product_yuju, config)
-        if record_state in ['assigned', 'done'] and record_product_yuju:            
+        if record_state in ['assigned', 'done', 'cancel'] and record_product_yuju:
             # logs("############## ok #############", config)
             try:
-                notifier.send_stock_webhook(self.env, record.product_id, record.company_id.id)
+                notifier.send_stock_webhook(self.env, record.product_id, company_id)
             except Exception as ex:
                 logger.exception(ex)
         

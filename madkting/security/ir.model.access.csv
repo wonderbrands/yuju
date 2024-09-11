@@ -36,3 +36,4 @@ mad_yuju_mapping_field_users,madkting yuju.mapping.field.users,model_yuju_mappin
 mad_yuju_mapping_field_value_users,madkting yuju.mapping.field.value.users,model_yuju_mapping_field_value,,1,0,0,0
 mad_yuju_mapping_custom_users,madkting yuju.mapping.custom.users,model_yuju_mapping_custom,,1,0,0,0
 mad_yuju_mapping_custom_value_users,madkting yuju.mapping.custom.value.users,model_yuju_mapping_custom_value,,1,0,0,0
+mad_madkting_config_user,madkting madkting.config.users,model_madkting_config,,1,0,0,0

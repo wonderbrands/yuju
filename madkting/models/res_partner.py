@@ -88,6 +88,27 @@ class ResPartner(models.Model):
         if hasattr(self, 'partner_gid'):
             defaults['partner_gid'] = 0
 
+        country_code = customer_data.pop('country_code', None)
+        country_id = self._get_country_id(country_code)
+
+        if not hasattr(self, 'l10n_mx_edi_colony'):
+            customer_data.pop('l10n_mx_edi_colony', None)
+        
+        state_id = False
+        state_name = customer_data.pop('l10n_mx_edi_locality', None)
+        state_id = self._get_state_id(state_name, country_id)
+        if state_id:
+            customer_data["state_id"] = state_id
+
+            if hasattr(self, 'city_id'):
+                logger.debug("Busca ciudad en el catalogo.")
+                city_name = customer_data.get("city")
+                logger.debug(city_name)
+                city_id = self._get_city_id(city_name, state_id)
+                if city_id:
+                    logger.debug(f"Ciudad encontrada en catalogo {city_name}.")
+                    customer_data["city_id"] = city_id
+
         customer_data = self.update_mapping_fields(customer_data)
 
         logger.debug(customer_data)
@@ -106,7 +127,7 @@ class ResPartner(models.Model):
             try:
                 country_code = customer_data.pop('country_code', None)
                 customer_data['country_id'] = self._get_country_id(country_code)
-                new_customer = self.create(customer_data)
+                new_customer = self.with_context(no_vat_validation=True).create(customer_data)
             except exceptions.AccessError as err:
                 return results.error_result(
                     code='access_error',
@@ -153,15 +174,21 @@ class ResPartner(models.Model):
         """
         parent_customer = self.browse(customer_id)
         country_code = address.pop('country_code', None)
+        country_id = self._get_country_id(country_code)
 
         if not hasattr(self, 'l10n_mx_edi_colony'):
-            city_name = address.pop('l10n_mx_edi_colony', None)
-            if hasattr(self, 'city_id'):
-                address["city_id"] = self._get_city_id(city_name)
+            address.pop('l10n_mx_edi_colony', None)
         
-        if not hasattr(self, 'l10n_mx_edi_locality'):
-            state_name = address.pop('l10n_mx_edi_locality', None)
-            address["state_id"] = self._get_state_id(state_name)
+        state_id = False
+        state_name = address.pop('l10n_mx_edi_locality', None)
+        state_id = self._get_state_id(state_name, country_id)
+        if state_id:
+            address["state_id"] = state_id
+            if hasattr(self, 'city_id'):
+                city_name = address.get("city")
+                city_id = self._get_city_id(city_name, state_id)
+                if city_id:
+                    address["city_id"] = city_id
         
         defaults = {
             'active': True,
@@ -172,7 +199,7 @@ class ResPartner(models.Model):
             'color': 0,
             'type': type_,
             'parent_id': customer_id,
-            'country_id': self._get_country_id(country_code)
+            'country_id': country_id
         }
 
         if not defaults['country_id']:
@@ -182,8 +209,10 @@ class ResPartner(models.Model):
             defaults['partner_gid'] = 0
 
         address.update(defaults)
+        address = self.update_mapping_fields(address)
+
         try:
-            new_address = self.create(address)
+            new_address = self.with_context(no_vat_validation=True).create(address)
         except exceptions.AccessError as err:
             return results.error_result(
                 code='access_error',
@@ -198,13 +227,13 @@ class ResPartner(models.Model):
             data = {'id': new_address.id}
             return results.success_result(data=data)
 
-    def _get_city_id(self, city_name):
+    def _get_city_id(self, city_name, state_id):
         """
         :param city_name:
         :type city_name: str
         :return: int | None
         """
-        city = self.env['res.city'].search([('name', 'ilike', city_name)])
+        city = self.env['res.city'].search([('name', 'ilike', city_name), ('state_id', '=', state_id)])
         if not city:
             return
         elif len(city) != 1:
@@ -212,13 +241,13 @@ class ResPartner(models.Model):
         else:
             return city.id
 
-    def _get_state_id(self, state_name):
+    def _get_state_id(self, state_name, country_id):
         """
         :param state_name:
         :type state_name: str
         :return: int | None
         """
-        state = self.env['res.country.state'].search([('name', 'ilike', state_name)])
+        state = self.env['res.country.state'].search([('name', 'ilike', state_name), ('country_id', '=', country_id)])
         if not state:
             return
         elif len(state) != 1:

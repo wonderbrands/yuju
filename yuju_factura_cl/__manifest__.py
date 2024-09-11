@@ -1,33 +1,30 @@
 # -*- coding: utf-8 -*-
 {
-    'name': "Yuju Combos",
+    'name': "Yuju Factura CL",
 
     'summary': """
-        Kit products""",
+        Facturacion Yuju CL""",
 
     'description': """
-        Module Kit products
+        Module Facturacion Yuju CL
     """,
 
     'author': "Gerardo A Lopez Vega @glopzvega",
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '0.0.4',
+    'version': '0.1.0',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
     'depends': [
         'madkting',
-        'mrp'
+        'l10n_latam_invoice_document'
+        # 'l10n_cl_edi'
     ],
     # always loaded
     'data': [
-        # 'security/security.xml',
-        'security/ir.model.access.csv',
-        'views/product_view.xml',
         'views/config_view.xml',
-        # 'views/templates.xml',
     ],
     # only loaded in demonstration mode
     'demo': [
@@ -47,8 +44,26 @@
     ]
 }
 
+# Version 0.0.1
+# *** Agrega configuracion para validar folios
+
+# Version 0.0.2
+# *** Corrige dependencia modulo madkting
+
 # Version 0.0.3
-# *** Agrega configuracion para actualizar tipo de producto en Odoo
+# *** FIX code id documento en metodo search usa objeto
 
 # Version 0.0.4
-# *** Fix: Update modulo combos fix override mdk_create variations
+# *** FIX code self empty in message post
+
+# Version 0.0.5
+# *** Agrega config validacion doctype NIT
+
+# Version 0.0.6
+# *** Actualiza metodo busca ultimo folio para generar boletas 
+
+# Version 0.0.7
+# *** Fix call method name
+
+# Version 0.1.0
+# *** Agrega validacion para agregar separador en le RFC y no validar RFC.

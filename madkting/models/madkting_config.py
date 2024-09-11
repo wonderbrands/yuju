@@ -14,9 +14,12 @@ class MadktingConfig(models.Model):
     _name = 'madkting.config'
     _description = 'Config'
 
+    company_id = fields.Many2one('res.company', 'Company')
+    
     stock_quant_available_quantity_enabled = fields.Boolean('Mostrar cantidad disponible', default=False)
-    stock_source = fields.Many2one('stock.location', string="Ubicacion de Stock", domain=[('usage', '=', 'internal')])
+    # stock_source = fields.Many2one('stock.location', string="Ubicacion de Stock", domain=[('usage', '=', 'internal')])
     stock_source_multi = fields.Char('Multi Stock Src')
+    stock_source_channels = fields.Char('Channels Stock Src')
     webhook_stock_enabled = fields.Boolean('Stock webhooks enabled', default=False)
     simple_description_enabled = fields.Boolean('Simple Description product enabled', default=False)
     validate_barcode_exists = fields.Boolean('Validar si el codigo de barras existe', default=True)
@@ -36,6 +39,7 @@ class MadktingConfig(models.Model):
     orders_force_cancel = fields.Boolean('Cancela ordenes con movimientos', help='Si esta habilitada las ordenes se cancelan incluso si tienen movimientos de almacen realizados.', default=False)
     orders_line_warehouse_enabled = fields.Boolean('Asigna almacen a las lineas de venta', help='Si esta habilitada se asigna el mismo almacen de la orden a las lineas de venta.', default=False)
     order_disable_update_empty_fields = fields.Char('Campos que no se actualizan si estan vacios')
+    order_remove_tax_default = fields.Boolean('Quitar impuestos default', help='Quita los impuestos default de las lineas de la venta')
 
     log_enabled = fields.Boolean('Habilitar log')
 
@@ -48,6 +52,7 @@ class MadktingConfig(models.Model):
     dropship_picking_type = fields.Many2one('stock.picking.type', string='Dropship Picking Type')
 
     validate_partner_exists = fields.Boolean('Buscar Partner', help="Valida si existe el partner en odoo antes de crearlo")
+    product_shared_catalog_enabled = fields.Boolean("Catalogo de productos compartido", default=False)
     
     @api.model
     def create_config(self, configs):
@@ -102,14 +107,25 @@ class MadktingConfig(models.Model):
 
         return results.success_result(config.copy_data()[0])
 
-    def get_config(self):
+    def get_config(self, company_id=None):
         """
         At this moment the configuration works as a unique record in config table.
         That is the reason for the following query
         it is assumed that there is only one configuration record
         :return:
         """
-        return self.search([], limit=1)
+        logger.debug("## GET CONFIG BY COMPANY ##")
+        if not company_id:
+            company_id = self.env.user.company_id.id
+            logger.debug(company_id)
+        
+        config_id = self.search([("company_id", "=", company_id)], limit=1)
+        if not config_id:
+            logger.debug("No se encontro config por company")
+            return
+        
+        logger.debug(config_id)
+        return config_id
 
 
 class MadktingWebhook(models.Model):

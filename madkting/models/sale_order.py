@@ -46,9 +46,42 @@ class SaleOrder(models.Model):
 
     def _update_custom_values(self, fulfillment, channel_id):
         logger.debug("## CUSTOM VALUES FOR ORDERS ##")
-        customs = self.env['yuju.mapping.custom'].update_custom_values(fulfillment, channel_id)
+        customs = self.env['yuju.mapping.custom'].update_custom_values(fulfillment, channel_id, modelo='sales')
         logger.debug(customs)
         return customs
+
+    def _get_defect_values(self, modelo='sales'):
+        logger.debug("## DEFAULT VALUES FOR ORDERS ##")
+        defaults = self.env['yuju.mapping.custom'].get_defect_values(modelo)
+        logger.debug(defaults)
+        return defaults
+    
+    def _search_order_exists(self, channel_id, order_id, ff_type, pack_id=None):
+                
+        domain = [
+            ('channel_order_id', '=', order_id), 
+            ('channel_id', '=', channel_id), 
+            ("fulfillment", "=", ff_type),
+            ('state', 'not in', ['cancel'])
+        ]
+
+        if pack_id:
+            domain.append(('yuju_pack_id', '=', pack_id))
+
+        logger.debug("#Search order domain")
+        logger.debug(domain)
+        
+        order_exists = self.search(domain)
+
+        if order_exists.ids:
+            return order_exists
+        return
+    
+    def _return_order_data_response(self, order_data):
+        data=order_data.yuju_get_data()
+        # logger.debug("### RESPONSE ORDER DATA ####")
+        # logger.debug(data)
+        return results.success_result(data)
 
     @api.model
     def mdk_create(self, order_data, **kwargs):
@@ -123,6 +156,10 @@ class SaleOrder(models.Model):
         set_tax_rate_by_product = kwargs.get('set_tax_rate_by_product')
         force_creation = kwargs.get('force_creation')
         company_id = order_data.get('company_id')
+        channel_id = order_data.get('channel_id')
+        channel_order_id = order_data.get('channel_order_id')
+        fulfillment = order_data.get('fulfillment')
+        yuju_pack_id = order_data.get('yuju_pack_id')
 
         if not picking_policy:
             picking_policy = 'direct'
@@ -189,11 +226,20 @@ class SaleOrder(models.Model):
         logger.debug("### ORDER DATA ###")
         logger.debug(order_data)
 
-        if order_data.get('channel_order_reference'):
-            order_exists = self.search([('channel_order_reference', '=', order_data.get("channel_order_reference"))], limit=1)
-            if not force_creation and order_exists:
-                logger.debug("### ORDER EXISTS {} ###".format(order_data.get("channel_order_reference")))
-                
+        order_exists = self._search_order_exists(
+            channel_id, channel_order_id, fulfillment, yuju_pack_id)
+        
+        if order_exists and len(order_exists.ids) > 0:
+            logger.debug("### ORDER EXISTS {} ###".format(order_data.get("channel_order_reference")))
+
+            if len(order_exists.ids) > 1:
+                order_names = [o.name for o in order_exists] 
+                for order_found in order_exists:
+                    err_msg = "Duplicated orders, verify {}".format(order_names)
+                    logger.debug(err_msg)
+                    order_found.message_post(body=err_msg)
+                return self._return_order_data_response(order_exists[0])
+            else:
                 if order_exists.state in ['draft', 'sent']:
                     try:
                         self._confirma_orden(order_exists)
@@ -201,32 +247,8 @@ class SaleOrder(models.Model):
                         post_message = 'The sale order counldn\'t be confirmed because of the following exception: {}'.format(ex)
                         logger.debug(post_message)
                         order_exists.message_post(body=post_message)
-
-                data=order_exists.yuju_get_data()
-                logger.debug("### RESPONSE MDK CREATE EXISTS ####")
-                logger.debug(data)
-                return results.success_result(data)
-
-        if order_data.get('yuju_pack_id'):
-            order_exists = self.search([('yuju_pack_id', '=', order_data.get("yuju_pack_id"))], limit=1)
-            if not force_creation and order_exists:
-                logger.debug("### ORDER EXISTS {} ###".format(order_data.get("yuju_pack_id")))
                 
-                if order_exists.state in ['draft', 'sent']:
-                    try:
-                        self._confirma_orden(order_exists)
-                    except Exception as ex:
-                        post_message = 'The sale order counldn\'t be confirmed because of the following exception: {}'.format(ex)
-                        logger.debug(post_message)
-                        order_exists.message_post(body=post_message)
-
-                data=order_exists.yuju_get_data()
-                logger.debug("### RESPONSE MDK CREATE EXISTS PACK ####")
-                logger.debug(data)
-                return results.success_result(data)
-
-        # if config.orders_unconfirmed:
-        #     order_data.update({'state' : 'draft'})
+                return self._return_order_data_response(order_exists)
 
         warehouse_id = order_data.get('warehouse_id')
 
@@ -341,9 +363,11 @@ class SaleOrder(models.Model):
                     )
                 else:                    
                     if not set_tax_rate_by_product and tax_cache.get(tax_rate):
+                        logger.info("## ENTRA 1")
                         new_line.tax_id = tax_cache[tax_rate]
                         continue
                     if set_tax_rate_by_product and product_tax_rate:
+                        logger.info("## ENTRA 2")
                         if not tax_cache.get(product_tax_rate):
                             tax_cache[product_tax_rate] = self.env['account.tax'] \
                                                               .search([('type_tax_use', '=', 'sale'),
@@ -353,7 +377,8 @@ class SaleOrder(models.Model):
                                                                       limit=1)
                         new_line.tax_id = tax_cache.get(product_tax_rate)
 
-                    if new_line.tax_id and not tax_rate and not set_tax_rate_by_product:
+                    if new_line.tax_id and config.order_remove_tax_default and not tax_rate and not set_tax_rate_by_product:
+                        logger.info("## ENTRA 3")
                         logger.info(
                             "Se quitan impuestos por default si no se recibe impuesto desde Yuju")
                         new_line.tax_id = [(6, 0, [])]
@@ -835,60 +860,33 @@ class SaleOrder(models.Model):
             return results.error_result(code='invoice_create_error',
                                         description='The sale order cannot be invoiced because of '
                                                     'the following exception: {}'.format(ex))
-        else:
-            
-            update_custom_values = self.env['yuju.mapping.field'].update_mapping_fields({}, 'account.move')
-            if update_custom_values:
-                logger.info(f'Hay campos que actualizar en la factura {update_custom_values}')
-                invoice.write(update_custom_values)
-
+        else:            
             invoice.ensure_one()
-            invoice.action_post()
+            defaults = self._get_defect_values('invoices')        
+            if defaults:
+                try:
+                    logger.debug("## DEFAULT INVOICES ###")
+                    logger.debug(defaults)
+                    invoice.update(defaults)
+                except Exception as e:
+                    logger.exception(f'Error al actualizar los datos de la factura: {e}')
+                    return results.error_result(code='invoice_create_error',
+                                        description='The sale order cannot be invoiced because of '
+                                                    'the following exception: {}'.format(e))            
+            try:
+                invoice.action_post()
+            except Exception as e:
+                logger.exception(f'Error al actualizar los datos de la factura: {e}')
+                return results.error_result(code='invoice_confirm_error',
+                                    description='The sale order invoice cannot be confirmed because of '
+                                                'the following exception: {}'.format(e))
+
             invoice_data = invoice.copy_data()[0]
             invoice_data['id'] = invoice.id
             invoice_data['name'] = invoice.name
             invoice_data['state'] = invoice.state
 
             return results.success_result(data=invoice_data)
-
-            # if order.payment_id:
-            #     logger.debug("Order already with payment...")
-            #     try:
-            #         payment = self.env['account.payment'].search([('id', '=', order.payment_id)], limit=1)
-            #         if payment and payment.state == 'posted':
-            #             logger.debug("Payment already posted...")
-            #             payment.action_draft()
-            #         payment.invoice_ids = [invoice.id]
-            #         payment.post()
-            #     except exceptions.AccessError as err:
-            #         return results.error_result(
-            #             code='access_error',
-            #             description=str(err)
-            #         )
-            #     except Exception as ex:
-            #         logger.exception(ex)
-            #         return results.error_result(
-            #             code='payment_post_error',
-            #             description='Payment {} couldn\'t be posted because of the '
-            #                         'following error: {}'.format(payment.id, ex)
-            #         )
-                
-            #     try:
-            #         invoice.action_invoice_paid()
-            #     except exceptions.AccessError as err:
-            #         return results.error_result(
-            #             code='access_error',
-            #             description=str(err)
-            #         )
-            #     except Exception as ex:
-            #         logger.exception(ex)
-            #         return results.error_result(
-            #             code='invoice_update_payed',
-            #             description='Error updating invoice to payed: {}'.format(ex)
-            #         )          
-            #     return results.success_result(data=invoice_data)
-            # else:
-            #     return results.success_result(data=invoice_data)
 
     def _concilia_factura_pago(self, payment, factura):
         credit_line = None

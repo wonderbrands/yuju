@@ -50,7 +50,7 @@
       <field name="arch" type="xml">
         <tree string="Configuration" >
           <field name="webhook_stock_enabled"/>
-          <field name="stock_source"/>
+          <field name="stock_source_multi"/>
         </tree>
       </field>
     </record>
@@ -63,10 +63,14 @@
         <form string="Configuration" >
           <group>
             <group>
+              <separator string="General"/>
+              <field name="company_id"/>
+
               <separator string="Webhooks"/>
               <field name="webhook_stock_enabled"/>
-              <field name="stock_source"/>
+              <!-- <field name="stock_source"/> -->
               <field name="stock_source_multi"/>
+              <field name="stock_source_channels"/>
               <field name="stock_quant_available_quantity_enabled"/>
 
               <separator string="Dropship"/>
@@ -91,6 +95,7 @@
               <field name="orders_unconfirmed_by_ff_type"/>
               <field name="orders_unconfirmed_stock_src"/>
               <field name="orders_unconfirmed_ff_types"/>
+              <field name="order_remove_tax_default"/>
               <field name="update_parent_list_price"/>
               <field name="simple_description_enabled"/>
               <field name="update_partner_name"/>
@@ -103,6 +108,7 @@
 
               <separator string="Productos"/>
               <field name="product_custom_fields"/>
+              <field name="product_shared_catalog_enabled" />
             </group>
           </group>
         </form>
@@ -242,7 +248,8 @@
             </group>
             <group>
               <field name="model"/>          
-              <field name="fieldtype"/>          
+              <field name="fieldtype"/>     
+              <field name="model_relation" attrs="{'invisible' : [('fieldtype', '!=', 'relation')]}"/>     
             </group>
           </group>
           <notebook>
@@ -298,7 +305,9 @@
       <field name="arch" type="xml">
         <tree string="Yuju Mapping Custom">
           <field name="name"/>         
-          <field name="value"/>         
+          <field name="value"/>  
+          <field name="value_type"/>  
+          <field name="modelo"/>       
         </tree>
       </field>
     </record>
@@ -312,9 +321,11 @@
           <group>
             <group>
               <field name="name"/>        
+              <field name="value"/> 
             </group>
             <group>
-              <field name="value"/>        
+              <field name="modelo"/>       
+              <field name="value_type"/>       
             </group>
           </group>
           <notebook>

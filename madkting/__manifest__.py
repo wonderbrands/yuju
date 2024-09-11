@@ -16,7 +16,7 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '1.1.8',
+    'version': '1.3.5',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
@@ -108,3 +108,40 @@
 
 # Version 1.1.8
 # *** Agrega configuracion validar fulfillment para confirmar la orden
+
+# Version 1.1.9
+# *** Agrega configuracion quitar impuestos por default
+
+# Version 1.2.0
+# *** Actualiza funcionalidad para mapeo de campos y defaults
+
+# Version 1.2.1
+# *** Agrega cambio de tipo en mapeo de campos
+
+# Version 1.2.2
+# *** Agrega configuracion catalogo compartido de productos en multiempresa
+
+# Version 1.2.3
+# *** Agrega configuracion multi empresa
+
+# Version 1.2.4
+# *** Fix error on product mapping writing string clears product_id field
+
+# Version 1.3.0
+# *** Agrega contexto al crear cliente y direccion para no validar RFC
+
+# Version 1.3.1
+# *** Agrega estatus cancelado en listener stock move para enviar webhook
+
+# Version 1.3.2
+# *** Map variation before creation
+# *** Handle multihop on mapping variations before creations
+
+# Version 1.3.3
+# *** Actualiza permiso madkting config para usuarios
+
+# Version 1.3.4
+# *** Arega validacion id_orden duplicada
+
+# Version 1.3.5
+# *** Actualiza stock canales
