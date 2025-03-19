@@ -15,7 +15,7 @@ from odoo.addons.component.core import WorkContext
 
 
 class EventWorkContext(WorkContext):
-    """ Work context used by the Events internals
+    """Work context used by the Events internals
 
     Should not be used outside of the events internals.
     The work context to use generally is
@@ -64,7 +64,7 @@ class EventWorkContext(WorkContext):
 
     @property
     def env(self):
-        """ Return the current Odoo env """
+        """Return the current Odoo env"""
         if self._env:
             return self._env
         return super(EventWorkContext, self).env
@@ -75,7 +75,7 @@ class EventWorkContext(WorkContext):
 
     @property
     def collection(self):
-        """ Return the current Odoo env """
+        """Return the current Odoo env"""
         if self._collection is not None:
             return self._collection
         raise ValueError("No collection, it is optional for EventWorkContext")
@@ -85,7 +85,7 @@ class EventWorkContext(WorkContext):
         self._collection = value
 
     def work_on(self, model_name=None, collection=None):
-        """ Create a new work context for another model keeping attributes
+        """Create a new work context for another model keeping attributes
 
         Used when one need to lookup components for another model.
 
