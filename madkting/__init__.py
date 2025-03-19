@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from . import controllers
 from . import models
 
 __author__ = 'Gerardo Alberto Lopez Vega'

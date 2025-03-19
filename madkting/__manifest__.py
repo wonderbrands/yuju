@@ -15,7 +15,7 @@
     'author': "Gerardo A Lopez Vega",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '15.0.1',
+    'version': '18.0',
 
     # any module necessary for this one to work correctly
     'depends': [
@@ -29,7 +29,6 @@
         'security/security.xml',
         'security/ir.model.access.csv',
         'views/views.xml',
-        # 'views/templates.xml',
     ],
     # only loaded in demonstration mode
     'demo': [
