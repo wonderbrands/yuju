@@ -21,7 +21,7 @@ import operator
 from collections import OrderedDict, defaultdict
 
 from odoo import models
-from odoo.tools import LastOrderedSet, OrderedSet
+from odoo.tools.misc import LastOrderedSet, OrderedSet
 
 from .exception import NoComponentError, RegistryNotReadyError, SeveralComponentError
 
@@ -245,6 +245,11 @@ class WorkContext:
         self.collection = collection
         self.model_name = model_name
         self.model = self.env[model_name]
+        # Allow propagation of custom component registry via context
+        if collection:
+            custom_registry = collection.env.context.get("components_registry")
+            if custom_registry:
+                components_registry = custom_registry
         # lookup components in an alternative registry, used by the tests
         if components_registry is not None:
             self.components_registry = components_registry
@@ -294,7 +299,7 @@ class WorkContext:
         components_registry = self.components_registry
         component_class = components_registry.get(name)
         if not component_class:
-            raise NoComponentError("No component with name '%s' found." % name)
+            raise NoComponentError(f"No component with name '{name}' found.")
         return component_class
 
     def component_by_name(self, name, model_name=None):
@@ -324,8 +329,8 @@ class WorkContext:
             and self.collection._name != component_class._collection
         ):
             raise NoComponentError(
-                "Component with name '%s' can't be used for collection '%s'."
-                % (name, self.collection._name)
+                f"""Component with name '{name}' can't be used for collection
+                     '{self.collection._name}'."""
             )
 
         if (
@@ -333,14 +338,13 @@ class WorkContext:
             and work_model not in component_class.apply_on_models
         ):
             if len(component_class.apply_on_models) == 1:
-                hint_models = "'{}'".format(component_class.apply_on_models[0])
+                hint_models = f"'{component_class.apply_on_models[0]}'"
             else:
-                hint_models = "<one of {!r}>".format(component_class.apply_on_models)
+                hint_models = f"<one of {component_class.apply_on_models!r}>"
             raise NoComponentError(
-                "Component with name '%s' can't be used for model '%s'.\n"
-                "Hint: you might want to use: "
-                "component_by_name('%s', model_name=%s)"
-                % (name, work_model, name, hint_models)
+                f"Component with name '{name}' can't be used for model '{work_model}'."
+                f"\nHint: you might want to use: "
+                f"component_by_name('{name}', model_name={hint_models})"
             )
 
         if work_model == self.model_name:
@@ -429,9 +433,8 @@ class WorkContext:
         )
         if not component_classes:
             raise NoComponentError(
-                "No component found for collection '%s', "
-                "usage '%s', model_name '%s'."
-                % (self.collection._name, usage, model_name)
+                f"No component found for collection '{self.collection._name}', "
+                f"usage '{usage}', model_name '{model_name}'."
             )
         elif len(component_classes) > 1:
             # If we have more than one component, try to find the one
@@ -444,9 +447,8 @@ class WorkContext:
             )
         if len(component_classes) != 1:
             raise SeveralComponentError(
-                "Several components found for collection '%s', "
-                "usage '%s', model_name '%s'. Found: %r"
-                % (
+                "Several components found for collection '{}', "
+                "usage '{}', model_name '{}'. Found: {}".format(
                     self.collection._name,
                     usage or "",
                     model_name or "",
@@ -473,7 +475,7 @@ class WorkContext:
         return [comp(work_context) for comp in component_classes]
 
     def __str__(self):
-        return "WorkContext({}, {})".format(self.model_name, repr(self.collection))
+        return f"WorkContext({self.model_name}, {repr(self.collection)})"
 
     __repr__ = __str__
 
@@ -756,7 +758,7 @@ class AbstractComponent(metaclass=MetaComponent):
         return self.work.many_components(usage=usage, model_name=model_name, **kw)
 
     def __str__(self):
-        return "Component(%s)" % self._name
+        return f"Component({self._name})"
 
     __repr__ = __str__
 
@@ -831,16 +833,16 @@ class AbstractComponent(metaclass=MetaComponent):
 
         if cls._name in registry and not parents:
             raise TypeError(
-                "Component %r (in class %r) already exists. "
+                f"Component {cls._name} (in class {cls}) already exists. "
                 "Consider using _inherit instead of _name "
-                "or using a different _name." % (cls._name, cls)
+                "or using a different _name."
             )
 
         # determine the component's name
         name = cls._name or (len(parents) == 1 and parents[0])
 
         if not name:
-            raise TypeError("Component %r must have a _name" % cls)
+            raise TypeError(f"Component {cls} must have a _name")
 
         # all components except 'base' implicitly inherit from 'base'
         if name != "base":
@@ -849,7 +851,7 @@ class AbstractComponent(metaclass=MetaComponent):
         # create or retrieve the component's class
         if name in parents:
             if name not in registry:
-                raise TypeError("Component %r does not exist in registry." % name)
+                raise TypeError(f"Component {name} does not exist in registry.")
             ComponentClass = registry[name]
             ComponentClass._build_component_check_base(cls)
             check_parent = ComponentClass._build_component_check_parent
@@ -871,8 +873,7 @@ class AbstractComponent(metaclass=MetaComponent):
         for parent in parents:
             if parent not in registry:
                 raise TypeError(
-                    "Component %r inherits from non-existing component %r."
-                    % (name, parent)
+                    f"Component {name} inherits from non-existing component {parent}."
                 )
             parent_class = registry[parent]
             if parent == name:

@@ -1,9 +1,9 @@
 # Copyright 2017 Camptocamp SA
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl.html)
 
-import unittest
 from unittest import mock
 
+from odoo.tests.case import TestCase
 from odoo.tests.common import MetaCase, tagged
 
 from odoo.addons.component.core import Component
@@ -16,7 +16,7 @@ from odoo.addons.component_event.core import EventWorkContext
 
 
 @tagged("standard", "at_install")
-class TestEventWorkContext(unittest.TestCase, MetaCase("DummyCase", (), {})):
+class TestEventWorkContext(TestCase, MetaCase("DummyCase", (), {})):
     """Test Events Components"""
 
     def __init__(self, *args, **kwargs):
@@ -79,6 +79,8 @@ class TestEventWorkContext(unittest.TestCase, MetaCase("DummyCase", (), {})):
     def test_env_work_on(self):
         """WorkContext propagated through work_on"""
         env = mock.MagicMock(name="env")
+        env.context = mock.MagicMock()
+        env.context.get = mock.MagicMock(return_value=False)
         collection = mock.MagicMock(name="collection")
         collection.env = env
         work = EventWorkContext(
@@ -98,6 +100,8 @@ class TestEventWorkContext(unittest.TestCase, MetaCase("DummyCase", (), {})):
     def test_collection_work_on(self):
         """WorkContext propagated through work_on"""
         env = mock.MagicMock(name="env")
+        env.context = mock.MagicMock()
+        env.context.get = mock.MagicMock(return_value=False)
         collection = mock.MagicMock(name="collection")
         collection.env = env
         work = EventWorkContext(
@@ -115,6 +119,8 @@ class TestEventWorkContext(unittest.TestCase, MetaCase("DummyCase", (), {})):
     def test_collection_work_on_collection(self):
         """WorkContext collection changed with work_on"""
         env = mock.MagicMock(name="env")
+        env.context = mock.MagicMock()
+        env.context.get = mock.MagicMock(return_value=False)
         collection = mock.MagicMock(name="collection")
         collection.env = env
         work = EventWorkContext(
@@ -137,7 +143,7 @@ class TestEvent(ComponentRegistryCase):
     """Test Events Components"""
 
     def setUp(self):
-        super(TestEvent, self).setUp()
+        super().setUp()
         self._setup_registry(self)
         self._load_module_components("component_event")
 
@@ -367,7 +373,7 @@ class TestEventFromModel(TransactionComponentRegistryCase):
     """Test Events Components from Models"""
 
     def setUp(self):
-        super(TestEventFromModel, self).setUp()
+        super().setUp()
         self._setup_registry(self)
         self._load_module_components("component_event")
 
