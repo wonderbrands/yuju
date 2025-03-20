@@ -48,7 +48,7 @@ class ProductProduct(models.Model):
 
             product_kit = self.search([('id_product_madkting', '=', product_kit_id)], limit=1)
             if not product_kit.id:
-                if config.search_kit_by_sku:
+                if config and config.search_kit_by_sku:
                     product_kit = self.search([('default_code', '=', product_kit_sku)], limit=1)
                     if not product_kit.id:
                         return results.error_result(code='component_not_mapped',
@@ -66,18 +66,20 @@ class ProductProduct(models.Model):
 
     @api.model
     def update_product(self, product_data, product_type, id_shop=None):        
-        
         config = self.env['madkting.config'].get_config()
-        product_type_for_kits = config.product_type_for_kits
+        product_type_for_kits = "consu"
+        # if config:
+        #     product_type_for_kits = config.product_type_for_kits
         my_product_data = copy.deepcopy(product_data)
         product_id = int(my_product_data.get('id', 0))
         product = self.browse(product_id)
         is_combo = False
 
-        if product_type != 'variation' and 'type' in product_data:
-            product_data.pop('type')
-
         if self._is_combo(product_data):
+
+            if product_type != 'variation' and 'type' in product_data:
+                product_data.pop('type')
+
             is_combo = True
             product_data.pop('is_combo')
             product_data.pop('combo_components')
@@ -87,22 +89,20 @@ class ProductProduct(models.Model):
                 return res_materials
             else:
                 kit_components = res_materials['data']
-                if config.update_product_type_kits:
-                    product_data.update({"type" : product_type_for_kits, "detailed_type" : product_type_for_kits})
-                else:
-                    if "type" in product_data:
-                        product_data.pop("type")
-                    if "detailed_type" in product_data:
-                        product_data.pop("detailed_type")
+                # if config and config.update_product_type_kits:
+                #     product_data.update({"type" : product_type_for_kits})
+                # else:
+                if "type" in product_data:
+                    product_data.pop("type")
 
         res = super(ProductProduct, self).update_product(product_data, product_type, id_shop)
 
         if res['success']:
             product = self.browse(product_id)
             route_id = config.mrp_route.id
-            if is_combo:
+            if is_combo and config:
                 logger.debug("## Es combo")
-                if product.yuju_kit and config.delete_old_bom:
+                if product.yuju_kit and config and config.delete_old_bom:
                     logger.debug("## Tiene Ldm")
                     try:
                         logger.debug("## Elimina Ldm anterior")
@@ -133,8 +133,8 @@ class ProductProduct(models.Model):
                         return results.error_result(code='bom_delete',
                                                         description='Ocurrio un error al eliminar la ldm')
                     
-                logger.debug("## Actualiza tipo y Ldm en producto")
-                product.write({'type': 'product', 'route_ids' : [(3, route_id)]})
+                # logger.debug("## Actualiza tipo y Ldm en producto")
+                # product.write({'type': 'product', 'route_ids' : [(3, route_id)]})
 
         return res
 
@@ -144,7 +144,9 @@ class ProductProduct(models.Model):
         logger.debug(variation_data)
         
         config = self.env['madkting.config'].get_config()
-        product_type_for_kits = config.product_type_for_kits
+        product_type_for_kits = "consu"
+        # if config:
+            # product_type_for_kits = config.product_type_for_kits
         my_product_data = copy.deepcopy(variation_data)
         variations = [my_product_data]        
         is_combo = True if my_product_data.get('is_combo') else False
@@ -155,20 +157,18 @@ class ProductProduct(models.Model):
             # Se actualiza el tipo del producto antes de asignar la lista de materiales ya que si no, 
             # se calcula el stock en base a los materiales existentes, lo cual no permite cambiar el tipo
             # si el stock es > 0 
-            if config.update_product_type_kits:
-                variation_data.update({"type" : product_type_for_kits, "detailed_type" : product_type_for_kits})
-            else:
-                if "type" in variation_data:
-                    variation_data.pop("type")
-                if "detailed_type" in variation_data:
-                    variation_data.pop("detailed_type")            
+            # if config and config.update_product_type_kits:
+            #     variation_data.update({"type" : product_type_for_kits})
+            # else:
+            if "type" in variation_data:
+                variation_data.pop("type")          
 
         res = super(ProductProduct, self).create_variation(variation_data, id_shop)
 
         logger.debug("## Response")
         logger.debug(res)
 
-        if res['success'] and is_combo:
+        if res['success'] and is_combo and config:
             res_data = res['data']
             # res_id = res_data.get('id')
             res_template_id = res_data.get('product_id')
@@ -219,12 +219,14 @@ class ProductTemplate(models.Model):
     @api.model
     def mdk_create(self, product_data, id_shop=None):
 
-        logger.debug("### MDK CREATE ###")
-        logger.debug(product_data)
+        logger.info("### MDK CREATE COMBO ###")
+        logger.info(product_data)
 
         products = self.env['product.product']
         config = self.env['madkting.config'].get_config()
-        product_type_for_kits = config.product_type_for_kits
+        product_type_for_kits = "consu"
+        # if config:
+        #     product_type_for_kits = config.product_type_for_kits
         is_combo = False
         
         my_product_data = copy.deepcopy(product_data)
@@ -242,14 +244,11 @@ class ProductTemplate(models.Model):
                     return res_materials
                 else:
                     kit_components = res_materials['data']
-                    if config.update_product_type_kits:
-                        product_data.update({"type" : product_type_for_kits, "detailed_type" : product_type_for_kits})
-                    else:
-                        if "type" in product_data:
-                            product_data.pop("type")
-                        if "detailed_type" in product_data:
-                            product_data.pop("detailed_type") 
-                    
+                    # if config and config.update_product_type_kits:
+                    #     product_data.update({"type" : product_type_for_kits})
+                    # else:
+                    if "type" in product_data:
+                        product_data.pop("type")
         else:
             variation_list = []            
             for var in product_data.pop('variations'):
@@ -258,11 +257,15 @@ class ProductTemplate(models.Model):
                     var.pop('is_combo')
                     var.pop('combo_components')
                 variation_list.append(var)
-            product_data.update({'variations' : variation_list})            
+            product_data.update({'variations' : variation_list})
+
+        if 'type' in product_data and product_data['type'] == 'product':
+            product_data['type'] = 'consu'
+            product_data['is_storable'] = True
     
         res = super(ProductTemplate, self).mdk_create(product_data, id_shop)
 
-        if res['success'] and is_combo:
+        if res['success'] and is_combo and config:
             res_data = res['data']
             logger.debug(res_data)
             res_id = res_data.get('id')
@@ -317,7 +320,7 @@ class ProductTemplate(models.Model):
                             # Se actualiza el tipo del producto antes de asignar la lista de materiales ya que si no, 
                             # se calcula el stock en base a los materiales existentes, lo cual no permite cambiar el tipo
                             # si el stock es > 0 
-                            variation_data = {"type" : product_type_for_kits, "detailed_type" : product_type_for_kits}
+                            variation_data = {"type" : product_type_for_kits}
                             product_variant.write(variation_data)
                             try:
                                 new_bom = products.add_combo(product_variant, kit_components)

@@ -13,14 +13,14 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '18.0',
+    'version': '0.0.2',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
     'depends': [
         'madkting',
-        'l10n_latam_invoice_document'
-        # 'l10n_cl_edi'
+        'l10n_latam_invoice_document',
+        'l10n_cl_edi'
     ],
     # always loaded
     'data': [
@@ -43,27 +43,3 @@
         "views/**/*",  # exclude all files in a folder hierarchy recursively
     ]
 }
-
-# Version 0.0.1
-# *** Agrega configuracion para validar folios
-
-# Version 0.0.2
-# *** Corrige dependencia modulo madkting
-
-# Version 0.0.3
-# *** FIX code id documento en metodo search usa objeto
-
-# Version 0.0.4
-# *** FIX code self empty in message post
-
-# Version 0.0.5
-# *** Agrega config validacion doctype NIT
-
-# Version 0.0.6
-# *** Actualiza metodo busca ultimo folio para generar boletas 
-
-# Version 0.0.7
-# *** Fix call method name
-
-# Version 0.1.0
-# *** Agrega validacion para agregar separador en le RFC y no validar RFC.

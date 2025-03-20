@@ -1,0 +1,23 @@
+<odoo>
+  <data>
+   
+    <!-- Top menu item -->
+    <menuitem name="Yuju" id="madkting.menu_root"/>
+    <menuitem name="Ventas" id="madkting.menu_sale" parent="madkting.menu_root"/>
+    <menuitem name="Ventas Sincronizadas" id="madkting.menu_sale_list" parent="madkting.menu_sale" action="madkting.action_window"/>
+    
+    <menuitem name="Config" id="madkting.menu_config" parent="madkting.menu_root" groups="madkting_api_group"/>
+    <menuitem name="Configuracion" id="madkting.menu_madkting_config" parent="madkting.menu_config" action="madkting.action_config_window" sequence="1"/>
+    <!-- <menuitem name="Mapeo de tiendas" id="madkting.menu_mapping_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping"/> -->
+    <!-- <menuitem name="Mapeo de productos" id="madkting.menu_mapping_product_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping_product"/> -->
+    <menuitem name="Mapeo de campos" id="madkting.menu_mapping_field_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping_field" sequence="2"/>
+    <menuitem name="Mapeo de estados" id="madkting.menu_mapping_state_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping_state" sequence="3"/>
+    <!-- <menuitem name="Mapeo de Modelos" id="madkting.menu_mapping_model_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping_model"/> -->
+    <!-- <menuitem name="Mapeos Tipo FF" id="madkting.menu_mapping_custom_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping_custom"/> -->
+    <!-- <menuitem name="Mapeo de campos" id="madkting.menu_mapping_field_value_list" parent="madkting.menu_config" action="madkting.action_yuju_mapping_field_value"/> -->
+    
+    <menuitem name="Webhook Suscriptions" id="madkting.menu_madkting_webhook" parent="madkting.menu_config" action="madkting.action_webhook_window" sequence="10"/>
+    <menuitem name="Webhook Records" id="menu_yuju_webhook_record" parent="madkting.menu_config" action="action_yuju_webhook_record_window" sequence="10"/>
+
+  </data>
+</odoo>

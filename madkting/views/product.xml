@@ -1,0 +1,26 @@
+<odoo>
+  <data>
+
+    <record id="view_product_yuju_form" model="ir.ui.view">
+      <field name="name">View Product Yuju Form</field>
+      <field name="model">product.product</field>
+      <field name="inherit_id" ref="product.product_normal_form_view"/>
+      <field name="arch" type="xml">
+        <xpath expr="//notebook" position="inside">
+          <page string="Yuju">
+            <group>
+              <group>
+                <field name="id_product_madkting" groups="madkting.madkting_api_group"/>
+                <field name="tipo_producto_yuju" groups="madkting.madkting_api_group"/>
+              </group>
+              <group>
+                <button name="send_webhook" string="Enviar Webhook" type="object" class="oe_highlight" groups="madkting.madkting_api_group"/>
+              </group>
+            </group>
+          </page>
+        </xpath>
+      </field>
+    </record>    
+
+  </data>
+</odoo>

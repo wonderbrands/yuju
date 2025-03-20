@@ -1,7 +1,6 @@
 from odoo.addons.component.core import Component
 from ..log.logger import logger
-from ..notifier import notifier
-
+from ..log.logger import logs
 
 class MadktingStockMoveListener(Component):
     _name = 'madkting.stock.move.listener'
@@ -36,15 +35,37 @@ class MadktingStockMoveListener(Component):
         :param record:
         :return:
         """
-        config = self.env['madkting.config'].sudo().get_config()
 
-        if not config or not config.webhook_stock_enabled:
+        if isinstance(record, bool):
+            logger.debug("Bool object for record")
+            return
+
+        company_id = record.company_id.id if record and record.company_id else None
+        config = self.env['madkting.config'].get_config(company_id)
+
+        if not config:
+            logger.warning("No config set in webhook listener")
             return
 
         record_state = getattr(record, 'state', None)
-        if record_state in ['assigned', 'done'] and record.product_id.id_product_madkting:            
-            try:
-                notifier.send_stock_webhook(self.env, record.product_id, record.company_id.id)
-            except Exception as ex:
-                logger.exception(ex)
+
+        if record_state in ['assigned', 'done', 'cancel']:
+            if config.webhook_product_mapped and not record.product_id.id_product_madkting:
+                post_message = f"Only mapped product can webhook {record.name}"
+                logger.warning(post_message)
+                if config.webhook_detail_enabled:
+                    record.product_id.message_post(body=post_message)
+            else:
+                try:
+                    wh_records = self.env["yuju.webhook.record"]
+                    wh_records.prepare_webhook(record.product_id, record.company_id.id)
+                except Exception as ex:
+                    logger.exception(ex)
+                    logs(ex)
+                    post_message = f"Error on webhook listener {record.name}: {ex}"
+                    record.message_post(body=post_message)
+                    if config.webhook_detail_enabled:
+                        record.product_id.message_post(body=post_message)
+
         
+# https://apps.yuju.io/api/sales/in/2301?id_shop=1085876

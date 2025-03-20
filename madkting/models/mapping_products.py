@@ -5,14 +5,10 @@
 # Created:        2019-07-19
 
 from odoo import models, api, fields
-from odoo import exceptions
 from odoo.exceptions import ValidationError
 
 from ..responses import results
 from ..log.logger import logger
-
-from collections import defaultdict
-import math
 
 class YujuMapping(models.Model):
     _name = 'yuju.mapping'
@@ -139,53 +135,3 @@ class ProductYujuMapping(models.Model):
         if product_mapping.ids:
             return product_mapping
         return []
-
-
-class YujuMappingModel(models.Model):
-    _name = "yuju.mapping.model"
-
-    name = fields.Char('Modelo Mapeo')
-    code = fields.Char('Codigo')
-
-class YujuMappingField(models.Model):
-    _name = "yuju.mapping.field"
-
-    name = fields.Char('Yuju Field')
-    field = fields.Char('Odoo Field')
-    default_value = fields.Char('Odoo Field Default Value')
-    fieldtype = fields.Selection([('integer', 'Numerico'), ('char', 'Cadena'), ('relation', 'Relacional')], 'Odoo Field Type')
-    model = fields.Many2one('yuju.mapping.model', 'Modelo Mapeo')
-
-    @api.model
-    def update_mapping_fields(self, record_data, modelo):
-        fvalues = self.env['yuju.mapping.field.value']
-        mapping_model = self.env['yuju.mapping.model'].search([('code', '=', modelo)], limit=1)
-        if mapping_model:
-            logger.debug("## Mapping model found")
-            mapping_field_ids = self.search([('model', '=', mapping_model.id)])
-            logger.debug("## Mapping field ids")
-            for row in mapping_field_ids:
-                yuju_field = row.name
-                odoo_field = row.field
-                logger.debug(yuju_field)
-                if yuju_field in record_data:
-                    yuju_value = record_data.pop(yuju_field)
-                    mapping_value_id = fvalues.search([('field_id', '=', row.id), ('name', '=', yuju_value)], limit=1)
-                    if mapping_value_id:
-                        mapping_value = mapping_value_id.value
-                    else:
-                        mapping_value = row.default_value                        
-
-                    if row.fieldtype in ['integer', 'relation']:
-                        mapping_value = int(mapping_value)
-                    
-                    record_data.update({odoo_field : mapping_value})
-
-        return record_data
-
-class YujuMappingFieldValue(models.Model):
-    _name = "yuju.mapping.field.value"
-
-    name = fields.Char('Yuju Value')
-    value = fields.Char('Odoo Value')
-    field_id = fields.Many2one('yuju.mapping.field', 'Odoo Field')
