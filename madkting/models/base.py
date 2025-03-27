@@ -10,12 +10,11 @@ from ..log.logger import logger
 
 
 class Base(models.AbstractModel):
-    # events notifiers
     _inherit = 'base'
 
     @api.model_create_multi
     def create(self, vals_list):
-        record_ids = super(Base, self).create(vals_list)
+        record_ids = list(super(Base, self).create(vals_list))  # Convert to list
         idx = 0
         for record in record_ids:
             try:
@@ -25,6 +24,7 @@ class Base(models.AbstractModel):
             else:
                 idx += 1
         return record_ids
+
 
     def write(self, vals):
         record = super(Base, self).write(vals)
