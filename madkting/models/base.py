@@ -14,16 +14,13 @@ class Base(models.AbstractModel):
 
     @api.model_create_multi
     def create(self, vals_list):
-        record_ids = list(super(Base, self).create(vals_list))  # Convert to list
-        idx = 0
-        for record in record_ids:
+        records = super().create(vals_list)  # Keep it as a recordset
+        for record, vals in zip(records, vals_list):  # Iterate through records and vals_list
             try:
-                self._event('on_record_create').notify(record, fields=vals_list[idx].keys())
+                self._event('on_record_create').notify(record, fields=vals.keys())
             except Exception as ex:
                 logger.exception(ex)
-            else:
-                idx += 1
-        return record_ids
+        return records  
 
 
     def write(self, vals):
