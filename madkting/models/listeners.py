@@ -41,31 +41,39 @@ class MadktingStockMoveListener(Component):
             return
 
         company_id = record.company_id.id if record and record.company_id else None
-        config = self.env['madkting.config'].get_config(company_id)
-
-        if not config:
-            logger.warning("No config set in webhook listener")
+        if not company_id:
+            logger.debug("No company id for record")
             return
+        # config = self.env['madkting.config'].get_config(company_id)
+
+        # if not config:
+        #     logger.warning("No config set in webhook listener")
+        #     return
 
         record_state = getattr(record, 'state', None)
 
         if record_state in ['assigned', 'done', 'cancel']:
-            if config.webhook_product_mapped and not record.product_id.id_product_madkting:
-                post_message = f"Only mapped product can webhook {record.name}"
-                logger.warning(post_message)
-                if config.webhook_detail_enabled:
-                    record.product_id.message_post(body=post_message)
-            else:
-                try:
-                    wh_records = self.env["yuju.webhook.record"]
-                    wh_records.prepare_webhook(record.product_id, record.company_id.id)
-                except Exception as ex:
-                    logger.exception(ex)
-                    logs(ex)
-                    post_message = f"Error on webhook listener {record.name}: {ex}"
-                    record.message_post(body=post_message)
-                    if config.webhook_detail_enabled:
-                        record.product_id.message_post(body=post_message)
+
+            if not record.product_id.webhook_pending:
+                logger.info("Update product webhook pending")
+                record.product_id.webhook_pending = True
+
+            # if config.webhook_product_mapped and not record.product_id.id_product_madkting:
+            #     post_message = f"Only mapped product can webhook {record.name}"
+            #     logger.warning(post_message)
+            #     if config.webhook_detail_enabled:
+            #         record.product_id.message_post(body=post_message)
+            # else:
+            #     try:
+            #         wh_records = self.env["yuju.webhook.record"]
+            #         wh_records.prepare_webhook(record.product_id, record.company_id.id)
+            #     except Exception as ex:
+            #         logger.exception(ex)
+            #         logs(ex)
+            #         post_message = f"Error on webhook listener {record.name}: {ex}"
+            #         record.message_post(body=post_message)
+            #         if config.webhook_detail_enabled:
+            #             record.product_id.message_post(body=post_message)
 
         
 # https://apps.yuju.io/api/sales/in/2301?id_shop=1085876

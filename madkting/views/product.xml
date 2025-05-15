@@ -12,6 +12,9 @@
               <group>
                 <field name="id_product_madkting" groups="madkting.madkting_api_group"/>
                 <field name="tipo_producto_yuju" groups="madkting.madkting_api_group"/>
+                <field name="webhook_pending" groups="madkting.madkting_api_group"/>
+                <field name="webhook_data" groups="madkting.madkting_api_group"/>
+                <field name="webhook_last_update" groups="madkting.madkting_api_group"/>
               </group>
               <group>
                 <button name="send_webhook" string="Enviar Webhook" type="object" class="oe_highlight" groups="madkting.madkting_api_group"/>

@@ -10,18 +10,21 @@ from ..log.logger import logger
 
 
 class Base(models.AbstractModel):
+    # events notifiers
     _inherit = 'base'
 
     @api.model_create_multi
     def create(self, vals_list):
-        records = super().create(vals_list)  # Keep it as a recordset
-        for record, vals in zip(records, vals_list):  # Iterate through records and vals_list
+        record_ids = super(Base, self).create(vals_list)
+        idx = 0
+        for record in record_ids:
             try:
-                self._event('on_record_create').notify(record, fields=vals.keys())
+                self._event('on_record_create').notify(record, fields=vals_list[idx].keys())
             except Exception as ex:
                 logger.exception(ex)
-        return records  
-
+            else:
+                idx += 1
+        return record_ids
 
     def write(self, vals):
         record = super(Base, self).write(vals)

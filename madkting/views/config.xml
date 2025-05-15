@@ -39,6 +39,7 @@
                   <field name="stock_source_channels"/>
                   <field name="stock_quant_available_quantity_enabled"/>
                   <field name="webhook_price_enabled"/>
+                  <field name="webhook_product_batchsize"/>
                   <field name="validate_price_webhook_enabled"/>
                   <field name="default_pricelist"/>
                   <field name="log_enabled"/>

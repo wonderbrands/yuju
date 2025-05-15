@@ -57,6 +57,7 @@
                 <field name="yuju_seller_shipping_cost" readonly="True"/>
                 <field name="yuju_shipping_id" readonly="True" groups="madkting.madkting_api_group"/>
                 <field name="payment_id" readonly="True" groups="madkting.madkting_api_group"/>
+                <field name="yuju_url_label" invisible="True"/>
                 <field name="yuju_error" readonly="True" />
                 <separator string="Acciones"/>
                 <button name="download_label" string="Descargar Guia" type="object" class="oe_highlight" invisible="yuju_url_label == ''" />

@@ -341,6 +341,50 @@ class WebhookRecords(models.Model):
                 wh_record.send_webhook()
 
     @api.model
+    def prepare_webhook_stock_cron(self, webhook_body, company_id):
+        """
+        TODO: register webhook failures in order to implement "retries"
+        :param env:
+        :type env: Environment
+        :param product_id:
+        :type product_id: int
+        :param hook_id:
+        :type hook_id: int
+        :return:
+        """
+        logger.debug('### SEND STOCK WEBHOOK (CRON) ###')
+        logger.debug("Company: {}".format(company_id))
+        config = self.env['madkting.config'].get_config(company_id)
+        logger.debug("CONFIG RETURNED {}".format(config))
+
+        if not config:
+            logger.debug("### NO CONFIG FOUND FOR COMPANY {} ###".format(company_id))
+            return
+
+        actual_dbname = self.env.cr.dbname
+        config_dbname = config.dbname
+
+        if actual_dbname != config_dbname:
+            logger.warning(f"Database configured is different from {actual_dbname}")
+            return
+
+        domain = [
+            ('hook_type', '=', 'stock'),
+            ('active', '=', True),
+            ('company_id', '=', company_id)
+        ]
+
+        webhook_suscriptions = self.env['madkting.webhook'].search(domain)
+
+        for webhook in webhook_suscriptions:
+            """
+            TODO: if the webhook fails store it into a database for retry implementation
+            """
+            url_webhook = f"{config.service_url}/{webhook.url}?id_shop={webhook.id_shop}&version=multi&event=stock_update"
+            self.create_webhook_record(product_id=None, company_id=company_id, webhook_body=webhook_body, url=url_webhook)
+
+
+    @api.model
     def prepare_webhook_price(self, product, company_id, new_price):
         """
         TODO: register webhook failures in order to implement "retries"
@@ -395,38 +439,48 @@ class WebhookRecords(models.Model):
             wh_record = self.create_webhook_record(product.id, company_id, webhook_body, url_webhook, event="price_update")
             if wh_record.id and config.webhook_price_enabled:
                 wh_record.send_webhook()
-
-    
     
     @api.model
     def create_webhook_record(self, product_id, company_id, webhook_body, url, event='stock_update'):
-        
-        domain = [
-            ("product_id", "=", product_id), 
-            ("company_id", "=", company_id),
-            ("event", "=", event),
-            ("url", "=", url)
+        wh_record = None
+        if product_id:
+            domain = [
+                ("product_id", "=", product_id),
+                ("company_id", "=", company_id),
+                ("event", "=", event),
+                ("url", "=", url),
+                ("state", "=", 'done'),
             ]
-        wh_record = self.search(domain, limit=1)
-        if not wh_record:
+
+            wh_record = self.search(domain, order="date_webhook desc")
+            if not wh_record:
+                wh_record = self.create({
+                    "product_id": product_id,
+                    "company_id": company_id,
+                    "date_webhook": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "event": event,
+                    "data": json.dumps(webhook_body),
+                    "url": url,
+                    "state": "draft"
+                })
+            else:            
+                wh_record[-1].write({
+                    "state": "draft",
+                    "date_webhook": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "data": json.dumps(webhook_body)
+                })
+        else:
             wh_record = self.create({
-                "product_id": product_id,
                 "company_id": company_id,
-                "date_webhook": datetime.now(),
+                "date_webhook": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "event": event,
                 "data": json.dumps(webhook_body),
                 "url": url,
                 "state": "draft"
             })
-            return wh_record
-        else:
-            wh_record.write({
-                "state": "draft",
-                "date_webhook": datetime.now(),
-                "data": json.dumps(webhook_body)
-            })
-            return wh_record
-    
+        
+        return wh_record
+
     def send_webhook(self):
         """
         :return:

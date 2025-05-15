@@ -1408,14 +1408,22 @@ class SaleOrder(models.Model):
             attached_formats = []
             for attach in attach_list:
                 logger.info(attach.name)
-                logger.info(attach.mimetype)
-                file_format = attach.mimetype.split("/")[1]
+                # logger.info(attach.mimetype)
+                # file_format = attach.mimetype.split("/")[1]
                 
+                if not attach.name or attach.name.find(".") < 0:
+                    logger.info("File format not found")
+                    continue
+
+                file_format = attach.name.split(".")[-1]
+                logger.info(file_format)
+
                 if file_format not in allowed_formats:
                     logger.info(f"Format {file_format} Not allowed [{allowed_formats}]")
                     continue
 
-                if attach.mimetype == file_mimetype[file_format] and not invoice_has[file_format]:
+                # if attach.mimetype == file_mimetype[file_format] and not invoice_has[file_format]:
+                if not invoice_has[file_format]:
                     if file_prefix[file_format]:
                         if attach.name.startswith(file_prefix[file_format]):
                             invoice_has[file_format] = True

@@ -26,6 +26,7 @@ class MadktingConfig(models.Model):
     webhook_stock_enabled = fields.Boolean('Stock webhooks enabled', default=False)
     webhook_product_mapped = fields.Boolean('Solo envia webhook de productos mapeados', default=True)
     webhook_price_enabled = fields.Boolean('Price webhooks enabled', default=False)
+    webhook_product_batchsize = fields.Integer('Numero de productos por webhook', default=40)
     validate_price_webhook_enabled = fields.Boolean('Validar precio actualizado', default=False)
     default_pricelist = fields.Char('Lista de precio para actualizar webhook')
     simple_description_enabled = fields.Boolean('Simple Description product enabled', default=False)
