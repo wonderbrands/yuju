@@ -1,0 +1,60 @@
+<odoo>
+    <data noupdate="1">
+        
+        <record id="yuju_scheduled_rule" model="ir.cron">
+            <field name="name">Yuju Process Stock Webhooks</field>
+            <field name="model_id" ref="model_product_product"/>
+            <field name="interval_number">30</field>
+            <field name="interval_type">minutes</field>
+            <!-- <field name="numbercall">-1</field> -->
+            <field name="priority">5</field>
+            <field name="user_id">2</field>
+            <!-- <field name="doall">True</field> -->
+            <field name="state">code</field>
+            <field name="code">model.process_webhooks()</field>
+        </record>
+
+        <record id="yuju_process_scheduled_rule" model="ir.cron">
+            <field name="name">Yuju Send Stock Webhooks</field>
+            <field name="model_id" ref="model_product_product"/>
+            <field name="interval_number">6</field>
+            <field name="interval_type">minutes</field>
+            <!-- <field name="numbercall">-1</field> -->
+            <field name="priority">5</field>
+            <field name="user_id">2</field>
+            <!-- <field name="doall">True</field> -->
+            <field name="state">code</field>
+            <field name="code">model.schedule_send_webhook()</field>
+        </record>
+
+        <record id="yuju_scheduled_price_rule" model="ir.cron">
+            <field name="name">Yuju Process Price Webhooks</field>
+            <field name="model_id" ref="model_product_product"/>
+            <field name="interval_number">10</field>
+            <field name="interval_type">minutes</field>
+            <!-- <field name="numbercall">-1</field> -->
+            <field name="priority">5</field>
+            <field name="user_id">2</field>
+            <!-- <field name="doall">True</field> -->
+            <field name="active">False</field>
+            <field name="state">code</field>
+            <field name="code">model.process_price_webhooks()</field>
+        </record>
+
+        <record id="yuju_scheduled_invoice_rule" model="ir.cron">
+            <field name="name">Yuju Invoice Webhooks</field>
+            <field name="model_id" ref="model_sale_order"/>
+            <field name="interval_number">2</field>
+            <field name="interval_type">hours</field>
+            <!-- <field name="numbercall">-1</field> -->
+            <field name="priority">5</field>
+            <field name="user_id">2</field>
+            <!-- <field name="doall">True</field> -->
+            <field name="active">False</field>
+            <field name="state">code</field>
+            <field name="code">model.process_invoice_webhooks()</field>
+        </record>
+
+    </data>
+</odoo>
+

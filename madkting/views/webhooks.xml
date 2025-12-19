@@ -1,0 +1,114 @@
+<odoo>
+  <data>
+
+    <record model="ir.ui.view" id="yuju_webook_record_list_view">
+      <field name="name">yuju.webhhook.record.list.view</field>
+      <field name="model">yuju.webhook.record</field>
+      <field name="type">list</field>
+      <field name="arch" type="xml">
+        <list string="Webhooks" >
+          <field name="date_webhook"/>
+          <field name="product_id"/>
+          <field name="date_send_webhook"/>
+          <field name="date_response_webhook"/>
+          <field name="company_id"/>
+          <!-- <field name="url"/> -->
+          <field name="event"/>
+          <field name="state"/>
+        </list>
+      </field>
+    </record>
+
+    <record model="ir.ui.view" id="yuju_webook_record_form_view">
+      <field name="name">yuju.webhook.record.form.view</field>
+      <field name="model">yuju.webhook.record</field>
+      <field name="type">form</field>
+      <field name="arch" type="xml">
+        <form string="Webhooks" >
+          <header>
+            <button name="send_webhook" type="object" string="Send Webhook" class="oe_highlight" groups="madkting.madkting_api_group"/>
+            <field name="state" widget="statusbar"/>
+          </header>
+          <group>
+            <group>
+              <field name="product_id"/>
+              <field name="company_id"/>
+              <field name="event"/>
+              <field name="url"/>
+            </group>
+            <group>
+              <field name="date_webhook"/>
+              <field name="date_send_webhook"/>
+              <field name="date_response_webhook"/>
+              <field name="data"/>
+              <field name="message"/>
+            </group>
+          </group>
+        </form>
+      </field>
+    </record>
+
+    <record id="action_yuju_webhook_record_window" model="ir.actions.act_window">
+      <field name="name">Webhook Record</field>
+      <field name="res_model">yuju.webhook.record</field>
+      <field name="view_id"></field>
+      <field name="view_mode">list,form</field>
+      <field name="domain">[]</field>
+    </record>
+
+    <record model="ir.ui.view" id="madkting.madkting_webhook_list_view">
+      <field name="name">madkting.webhook.list.view</field>
+      <field name="model">madkting.webhook</field>
+      <field name="type">list</field>
+      <field name="arch" type="xml">
+        <list string="Webhooks" >
+          <field name="updated_at"/>
+          <field name="hook_type"/>
+          <field name="url"/>
+          <field name="id_shop"/>
+          <field name="company_id"/>
+          <field name="active"/>
+        </list>
+      </field>
+    </record>
+
+    <record model="ir.ui.view" id="madkting.madkting_webhook_form_view">
+      <field name="name">madkting.webhook.form.view</field>
+      <field name="model">madkting.webhook</field>
+      <field name="type">form</field>
+      <field name="arch" type="xml">
+        <form string="Webhooks" >
+          <header>
+            <button name="send_webhook_all" type="object" string="Send Webhook" class="oe_highlight" groups="madkting.madkting_api_group"/>
+          </header>
+          <group>
+            <group>
+              <field name="url"/>
+              <field name="id_shop"/>
+              <field name="company_id"/>
+              <field name="hook_type"/>
+              <field name="active"/>
+            </group>
+            <group>
+              <field name="updated_at"/>
+              <field name="message"/>
+            </group>
+          </group>
+        </form>
+      </field>
+    </record>
+
+    <record id="madkting.action_webhook_window" model="ir.actions.act_window">
+      <field name="name">Madkting Webhook</field>
+      <field name="res_model">madkting.webhook</field>
+      <field name="view_id"></field>
+      <field name="view_mode">list,form</field>
+      <field name="domain">[]</field>
+    </record>
+
+    <!-- <menuitem name="Webhook Suscriptions" id="madkting.menu_madkting_webhook" parent="madkting.menu_config" action="madkting.action_webhook_window" position="10"/>
+    <menuitem name="Webhook Records" id="menu_yuju_webhook_record" parent="madkting.menu_config" action="action_yuju_webhook_record_window" position="10"/>
+
+     -->
+  </data>
+</odoo>

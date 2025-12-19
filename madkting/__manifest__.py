@@ -12,23 +12,32 @@
         - Update your stock from odoo to your Yuju account.
     """,
 
-    'author': "Gerardo A Lopez Vega",
+    'author': "Gerardo A Lopez Vega @glopzvega",
+    'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '15.0.1',
+    'version': '19.0.0.1',
+    'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
     'depends': [
-        'base',
+        # 'base',
         'sale_management',
         'stock',
-        'component_event'
+        # 'component_event'
     ],
     # always loaded
     'data': [
         'security/security.xml',
         'security/ir.model.access.csv',
-        'views/views.xml',
+        'data/cron_rule.xml',
+        'views/config.xml',
+        'views/mappings.xml',
+        'views/webhooks.xml',
+        'views/sale_order.xml',
+        'views/product.xml',
+        'views/menu_items.xml',
+        # 'views/views.xml',
         # 'views/templates.xml',
     ],
     # only loaded in demonstration mode

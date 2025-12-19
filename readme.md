@@ -7,7 +7,7 @@ please refer to our website.
 >https://yuju.io
 
 ### version
-15.0.0
+18.0.0
 
 ### Installation
 1. This module depends on _Components Events_ which is part of [_Connector Framework_](http://odoo-connector.com/). In order to install this
@@ -45,3 +45,21 @@ uncompress the module into the right directory for addons.
 Contributors & maintainers
 --
 Gerardo A Lopez Vega <gerardo.lopez@yuju.io>
+
+### Changelog
+
+1. Version 2.6.2: Fix creacion de atributos duplicados en producto
+
+2. Version 2.6.2: Agrega opcion para quitar campo de los datos a insertar despues del mapeo
+
+3. Version 2.6.1: Fix doctype serie invoice
+
+4. Version 2.6.0: agrega campo yuju_due_date en pedidos
+
+5. Version 2.5.9: Fix agregar direccion customer sin company_id
+
+6. Version 2.5.8: Fix tipo de producto en actualizacion general de stock.
+
+7. Version 2.5.7: Agrega opcion para buscar stock en campos calculados, oculta opcion de ubicaciones hijas
+
+8. Version 2.5.6: Agrega opcion para actualizar nombre del cliente con direccion de factura

@@ -1,67 +1,33 @@
-# -*- coding: utf-8 -*-
-# File:           res_partner.py
-# Author:         Israel Calderón
-# Copyright:      (C) 2019 All rights reserved by Madkting
-# Created:        2019-03-20
-# from odoo import models, api
-# from datetime import datetime
-#
-#
-# class Picking(models.Model):
-#     _inherit = 'stock.picking'
-#
-#     @api.model
-#     def product_stock_receipt(self, product_id, product_name, company_id,
-#                               location_id, location_dest_id, quantity, partner_id=None):
-#         """
-#         TODO: implement initial stock functionality in this method
-#         """
-#         if not partner_id:
-#             partner_id = self._uid
-#
-#         picking = {
-#             'origin': False,
-#             'note': False,
-#             'move_type': 'direct',
-#             'date': datetime.now(),
-#             'location_id': location_id,
-#             'location_dest_id': location_dest_id,
-#             'move_lines': [(0, 0,
-#                             {'state': 'draft',
-#                              'name': product_name,
-#                              'sequence': 10,
-#                              'priority': False,
-#                              'date': datetime.now(),
-#                              'company_id': company_id,
-#                              'date_expected': datetime.now(),
-#                              'product_id': product_id,
-#                              'product_uom_qty': quantity,
-#                              'product_uom': 1,
-#                              'product_packaging': False,
-#                              'location_id': location_id,
-#                              'location_dest_id': location_dest_id,
-#                              'partner_id': False,
-#                              'note': False,
-#                              'origin': False,
-#                              'procure_method': 'make_to_stock',
-#                              'group_id': False,
-#                              'rule_id': False,
-#                              'propagate': True,
-#                              'picking_type_id': 1,
-#                              'inventory_id': False,
-#                              'restrict_partner_id': False,
-#                              'route_ids': [(6, 0, [])],
-#                              'warehouse_id': False,
-#                              'additional': False,
-#                              'package_level_id': False,
-#                              'sale_line_id': False}
-#                             )],
-#             'picking_type_id': 1, # TODO
-#             'partner_id': 67, # TODO
-#             'company_id': company_id,
-#             'owner_id': False,
-#             'printed': False,
-#             'is_locked': True,
-#             'immediate_transfer': False,
-#             'message_main_attachment_id': False
-#         }
+from odoo import models, fields, api
+import logging
+
+_logger = logging.getLogger(__name__)
+
+class StockPicking(models.Model):
+    _inherit = 'stock.picking'
+    
+    def _pre_action_done_hook(self):
+        _logger.info("Override _pre_action_done_hook Yuju")
+        vals = super(StockPicking, self)._pre_action_done_hook()
+        _logger.info(vals)
+        _logger.info(self.env.context)
+        if isinstance(vals, dict):
+            if (
+                vals.get('type') == 'ir.actions.act_window' and
+                vals.get('res_model') == 'stock.backorder.confirmation' and 
+                self.env.context.get("from_yuju", False) # validate context yuju to create backorder
+            ):
+                _logger.info("Process backorder automatically from Yuju")
+                pickings_to_validate = self.env.context.get(
+                    'button_validate_picking_ids')
+                if pickings_to_validate:
+                    pickings_to_validate = self.env['stock.picking'].browse(
+                            pickings_to_validate).with_context(skip_backorder=True)
+                    if self.env.context.get('is_partial'):
+                        return pickings_to_validate.button_validate()
+                    else:
+                        return pickings_to_validate\
+                            .with_context(picking_ids_not_to_backorder=pickings_to_validate.ids)\
+                            .button_validate()
+
+        return vals

@@ -1,0 +1,104 @@
+<odoo>
+  <data>
+
+    
+    <!-- explicit list view definition -->
+    <record model="ir.ui.view" id="madkting.sale_list">
+      <field name="name">sale.order.list</field>
+      <field name="model">sale.order</field>
+      <field name="type">list</field>
+      <field name="arch" type="xml">
+        <list string="Yuju orders" create="false">
+          <field name="name"/>
+          <field name="channel"/>
+          <field name="channel_order_reference"/>
+          <field name="state"/>
+          <field name="invoice_status"/>
+          <field name="order_progress"/>
+          <field name="payment_status"/>
+        </list>
+      </field>
+    </record>
+    
+    <record id="view_order_form_inherit" model="ir.ui.view">
+      <field name="name">Sale Order Custom</field>
+      <field name="model">sale.order</field>
+      <field name="inherit_id" ref="sale.view_order_form"/>
+      <field name="arch" type="xml">
+        <xpath expr="//notebook" position="inside">
+          <page string="Yuju">
+            <group>
+              <group>
+                <separator string="Order Info"/>
+                <field name="channel" readonly="True"/>
+                <field name="yuju_shop_id" readonly="True" groups="madkting.madkting_api_group"/>
+                <field name="fulfillment"/>
+                <field name="channel_id" groups="madkting.madkting_api_group" />
+                <field name="yuju_pack_id" />
+                <field name="channel_order_id" groups="madkting.madkting_api_group" /> 
+                <field name="channel_order_reference" />                 
+                <field name="yuju_seller_id" readonly="True"/>
+                <field name="yuju_create_date_order" readonly="True"/>
+                <field name="yuju_update_date_order" readonly="True"/>
+                <field name="yuju_payment_date_order" readonly="True"/>
+                <field name="yuju_due_date" readonly="True"/>
+                <separator string="Detalle de la venta"/>
+                <field name="yuju_order_data" />
+              </group>
+              <group>
+                <separator string="Others"/>
+                <field name="order_progress"/>
+                <field name="yuju_shipping_status"/>
+                <field name="yuju_invoice_status"/>
+                <field name="yuju_invoice_retries"/>
+                <field name="webhook_last_update"/>
+                <field name="yuju_invoice_doctype"/>
+                <field name="yuju_carrier"/>
+                <field name="yuju_payment_method" readonly="True"/>
+                <field name="yuju_shipping_type" readonly="True"/>
+                <field name="yuju_marketplace_fee" readonly="True"/>
+                <field name="yuju_carrier_tracking_ref" readonly="True"/>
+                <field name="yuju_seller_shipping_cost" readonly="True"/>
+                <field name="yuju_shipping_id" readonly="True" groups="madkting.madkting_api_group"/>
+                <field name="payment_id" readonly="True" groups="madkting.madkting_api_group"/>
+                <field name="yuju_url_label" invisible="True"/>
+                <field name="yuju_error" readonly="True" />
+                <separator string="Acciones"/>
+                <button name="download_label" string="Descargar Guia" type="object" class="oe_highlight" invisible="yuju_url_label == ''" />
+                <button name="test_print_invoice" string="Generar Invoice PDF" type="object" class="oe_highlight" />
+              </group>
+            </group>
+          </page>
+        </xpath>
+        <xpath expr="//button[@name='action_cancel']" position="after">
+          <button name="test_send_invoice_xml" type="object" string="Webhook Invoice" class="oe_highlight" groups="madkting.madkting_api_group"/>
+          <button name="test_send_shipping" type="object" string="Webhook Shipping" class="oe_highlight" groups="madkting.madkting_api_group"/>
+        </xpath>
+      </field>
+    </record>
+
+    <!-- actions opening views on models -->
+    <record id="madkting.action_window" model="ir.actions.act_window">
+      <field name="name">Ventas Sincronizadas</field>
+      <field name="res_model">sale.order</field>
+      <field name="view_id"></field>
+      <field name="view_mode">list,form</field>
+      <field name="domain">[('channel_order_id', '!=', False)]</field>
+    </record>
+
+    <!-- <menuitem name="Ventas" id="madkting.menu_sale" parent="madkting.menu_root"/>
+    <menuitem name="Ventas Sincronizadas" id="madkting.menu_sale_list" parent="madkting.menu_sale" action="madkting.action_window"/> -->
+
+    <record id="view_warehouse_yuju_form" model="ir.ui.view">
+      <field name="name">View Warehouse Yuju Form</field>
+      <field name="model">stock.warehouse</field>
+      <field name="inherit_id" ref="stock.view_warehouse"/>
+      <field name="arch" type="xml">
+        <field name="lot_stock_id" position="after">
+          <field name="dropship_enabled"/>
+        </field>
+      </field>
+    </record>
+
+  </data>
+</odoo>

@@ -11,10 +11,12 @@ from odoo import exceptions
 from ..responses import results
 from ..log.logger import logger
 
-from ..notifier import notifier
-
 from collections import defaultdict
+import json
+import logging
 import math
+
+_logger = logging.getLogger(__name__)
 
 class ProductProduct(models.Model):
     _inherit = "product.product"
@@ -25,6 +27,11 @@ class ProductProduct(models.Model):
                                             help='En caso de no tener stock como se procesará Yuju el pedido para este producto, \n'
                                                  'Dropship: Lo surte el proveedor \n' 
                                                  'MTO: Se compra y lo surte la empresa')
+    
+    webhook_pending = fields.Boolean('Webhook pending', default=False)
+    webhook_price_pending = fields.Boolean('Webhook price pending', default=False)
+    webhook_data = fields.Text('Webhook data', default='')
+    webhook_last_update = fields.Char('Fecha ultimo webhook', default='')
 
     _sql_constraints = [('id_product_madkting_uniq', 'unique (id_product_madkting,active)',
                          'The relationship between products of madkting and odoo must be one to one!')]
@@ -53,53 +60,556 @@ class ProductProduct(models.Model):
                                  'company_id': int,
                                  'standard_price': (float, int),
                                  'attributes': dict,
+                                 'type' : str,
+                                #  'detailed_type' : str,
                                  'id_product_madkting': (int, str)}
 
-    @api.model
-    def send_webhook(self, company_id):
+    def split_into_chunks(
+        self, to_split, chunks_size: int
+    ):
+        """Split a list into chunks of the given size.
+
+        Args:
+            to_split: List to be splitted.
+            chunks_size: Size of the chunks.
+
+        Yields:
+            Chunks of the given size.
+        """
+        for i in range(0, len(to_split), chunks_size):
+            next_size = i + chunks_size
+            yield to_split[i:next_size]
+
+    def _get_product_stock(self, product, location_ids, company_id):
+        locations = {}
+        stock_product = 0
+
+        for location_id in location_ids:
+            try:
+                qty_in_branch = product.with_context({"location" : location_id}).free_qty
+                locations.update({
+                    str(location_id) : qty_in_branch
+                })
+                stock_product += qty_in_branch
+            except Exception as e:
+                logger.exception("Error getting product stock")
+                pass
+
+        stock_data = {
+            "product_id" : product.id,
+            "company_id" : company_id,
+            "default_code" : product.default_code,
+            "stock" : stock_product,
+            "quantities": locations
+        }
+        
+        return stock_data, locations
+    
+    def _get_stock_products(self, products, location_ids, company_id):
+        result_data = []
+        product_ids = products.ids
+
+        if not product_ids or not location_ids:
+            return {}
+
+        for product in products:
+            product_stock = {
+                "product_id" : product.id,
+                "company_id" : company_id,
+                "default_code" : product.default_code,
+                "stock" : 0,
+                "quantities": {}
+            }
+
+            for location_id in location_ids:
+                try:
+                    qty_in_branch = product.with_context({"location" : location_id}).free_qty
+                    if product.default_code == "REFINED":
+                        logger.info("REFINED")
+                        logger.info(type(location_id))
+                        logger.info(qty_in_branch)
+                    product_stock['quantities'].update({
+                        str(location_id) : qty_in_branch
+                    })
+                    product_stock['stock'] += qty_in_branch
+                except Exception as e:
+                    logger.exception(f"Error getting product stock {e}")
+
+            result_data.append(product_stock)
+
+        logger.debug("## RESULT DATA SIMPLE ##")
+        logger.debug(result_data)
+
+        return result_data
+
+    def get_stock_products(self, products, location_ids, company_id):
+        config = self.env['madkting.config'].get_config(company_id)
+        if config.simple_stock_locations:
+            return self._get_stock_products(products, location_ids, company_id)
+        
+        result_data = []
+        product_ids = []
+        product_ids = products.ids        
+        
+        if not product_ids or not location_ids:
+            return {}
+        
+        for product in products:
+            
+            result_data.append({
+                "product_id" : product.id,
+                "company_id" : company_id,
+                "default_code" : product.default_code,
+                "stock" : 0,
+                "quantities": {}
+            })
+        
+        # Inicializar todo en 0
+        stock_by_product = {
+            product_id: {
+                location_id: 0.0 for location_id in location_ids
+            } for product_id in product_ids
+        }
+
+        stock_data = self.env['stock.quant'].read_group(
+            domain=[
+                ('product_id', 'in', product_ids),
+                ('location_id', 'in', location_ids),
+                ('company_id', '=', company_id)
+            ],
+            fields=['product_id', 'location_id', 'quantity:sum', 'reserved_quantity:sum'],
+            groupby=['product_id', 'location_id'],
+            lazy=False
+        )
+
+        # Sobrescribir los valores encontrados
+        for line in stock_data:
+            product = line['product_id'][0]
+            location = line['location_id'][0]
+            available = line['quantity'] - line['reserved_quantity']
+            stock_by_product[product][location] = available
+
+        logger.debug("## STOCK DATA ##")
+        logger.debug(stock_by_product)
+
+        for result in result_data:
+            product_id = result['product_id']
+            if product_id in stock_by_product:
+                result['quantities'] = stock_by_product[product_id]
+                result['stock'] = sum(stock_by_product[product_id].values())
+
+        logger.debug("## RESULT DATA ##")
+        logger.debug(result_data)
+
+        return result_data
+    
+    def _get_location_ids(self, config, with_channels=True):
+        """
+        Get the location IDs from the configuration.
+        :param config: Configuration record.
+        :return: List of location IDs.
+        """
+        location_ids = []
+        stock_locations = config.stock_source_multi
+        if with_channels and config.stock_source_channels:
+            stock_locations = f"{stock_locations},{config.stock_source_channels}"
+
+        for location in stock_locations.split(','):
+            location_id = int(location)
+            if location_id not in location_ids:
+                location_ids.append(location_id)
+
+        # TODO: Se requiere agregar una funcionalidad para agrupar el stock por ubicaciones
+        # en configuraciones con varios niveles de ubicaciones.
+        # if config.stock_locations_children:
+        #     locations = self.env["stock.location"].browse(location_ids)
+        #     location_ids = self.env["stock.location"].search([('id', 'child_of', locations.ids)]).ids
+        
+        locations = self.env["stock.location"].browse(location_ids)
+        return locations.ids
+
+    def process_webhooks(self):
+        logger.info("## PREPARE WEBHOOKS ##")
+        config_ids = self.env['madkting.config'].with_context(
+                prefetch_fields=[
+                    'company_id',
+                    'stock_source_multi',
+                    'webhook_stock_enabled',
+                    'webhook_stock_cron_enabled',
+                    'webhook_product_mapped',
+                    'webhook_product_batchsize',
+                    'webhook_auto_send_enabled'
+                ]).search([])
+        
+        batchsize = 20
+        product_data = []
+        processed_webhooks = False
+        for config in config_ids:
+
+            if not config.stock_source_multi or not config.webhook_stock_enabled or not config.webhook_stock_cron_enabled:
+                logger.debug("Webhook stock cron not enabled in config")
+                continue
+
+            domain = [('webhook_pending', '=', True)]
+            if config.webhook_product_mapped:
+                domain.append(('id_product_madkting', '!=', False))
+            
+            product_ids = self.with_context(
+                prefetch_fields=[
+                    'default_code', 
+                    'id_product_madkting'
+                ]).search(domain)
+
+            if not product_ids:
+                logger.info("No hay productos pendientes de webhook")
+                return results.success_result([])
+
+            processed_webhooks = True
+
+            company_id = config.company_id.id
+            if config.webhook_product_batchsize:
+                batchsize = config.webhook_product_batchsize
+
+            location_ids = self._get_location_ids(config)
+            stock_data = self.get_stock_products(
+                products=product_ids,
+                location_ids=location_ids,
+                company_id=company_id
+            )
+
+            wh_records = self.env["yuju.webhook.record"]
+            for product_data in self.split_into_chunks(stock_data, batchsize):
+                # product_data = self.process_webhook_chunk(product_ids=prod_ids, config=config, company_id=company_id, location_ids=location_ids)
+                auto_send = config.webhook_auto_send_enabled
+                wh_records.prepare_webhook_cron(webhook_body=product_data, company_id=company_id, type_webhook='stock', auto_send=auto_send)
+
+        if processed_webhooks:
+            product_ids.write({'webhook_pending': False, "webhook_last_update": fields.Datetime.now().strftime('%Y-%m-%d %H:%M:%S')})    
+        
+        return results.success_result(product_data)
+    
+    def write(self, values):
+        # Check if we need to update price for products
+        need_update = False
+        config_ids = self.env['madkting.config'].search([])
+        for config in config_ids:
+            if config.webhook_price_enabled:
+                need_update = True
+                break
+        if need_update and "lst_price" in values:
+            values["webhook_price_pending"] = True
+        return super(ProductProduct, self).write(values)
+    
+    def _get_price(self):
+        _logger.debug("## GET PRICE ##")
+        _logger.debug(self._origin)
+        _logger.debug(self._origin.id)
+        product = self._origin
+        new_price = self.lst_price
+        config = self.env['madkting.config'].get_config()
+        if config and config.default_pricelist:
+            pricelist_id = int(config.default_pricelist)
+            pricelist = self.env['product.pricelist'].browse(pricelist_id)
+            res = pricelist._get_product_price(product, 1.0)
+        else:
+            res = new_price
+        return res    
+    
+    def update_price_webhook(self, product_ids, company_id):
+        """
+        Updates the price of a product and sends a webhook if enabled in the configuration.
+        :type product: product.product
+        :type company_id: int
+        :type new_price: float
+        :return: None
+        """
+        logger.debug("## UPDATE PRICE WEBHOOK ##")
+        logger.debug(f"Company: {company_id}")
+        webhook_data = []
+        for product in product_ids:
+            logger.debug(product.id)
+            new_price = product._get_price()
+            price_data = {
+                "product_id" : product.id,
+                "company_id" : company_id,
+                "default_code" : product.default_code,
+                "price" : new_price,
+            }
+            webhook_data.append(price_data)
+
+        if webhook_data:        
+            wh_records = self.env["yuju.webhook.record"]
+            wh_records.prepare_webhook_cron(webhook_body=webhook_data, company_id=company_id, type_webhook='price', auto_send=True)        
+        return
+    
+    def process_price_webhooks(self):
+        logger.info("## PREPARE PRICE WEBHOOKS ##")
+        config_ids = self.env['madkting.config'].search([])
+        product_ids = self.search([('webhook_price_pending', '=', True)])
+
+        if not product_ids:
+            logger.info("No hay productos pendientes de webhook")
+            return results.success_result([])
+        
+        batchsize = 20
+        product_data = []
+        processed_webhooks = False
+        for config in config_ids:
+            
+            if not config.webhook_price_enabled:
+                continue
+
+            if config.webhook_product_mapped:
+                product_record_ids = [product for product in product_ids if product.id_product_madkting]
+                if not product_record_ids:
+                    logger.info("No hay productos pendientes de webhook con id_product_madkting")
+                    continue
+            else:
+                product_record_ids = [product for product in product_ids]
+
+            processed_webhooks = True
+
+            for prod_ids in self.split_into_chunks(product_record_ids, batchsize):
+                self.update_price_webhook(prod_ids, config.company_id.id)
+
+        if processed_webhooks:
+            product_ids.write({'webhook_price_pending': False})
+        
+        return results.success_result(product_data)
+    
+    def schedule_send_webhook(self):
+        config_ids = self.env['madkting.config'].search([])
+        for config in config_ids:
+            if config.webhook_auto_send_enabled:
+                logger.debug(f"Auto send enabled, skipping scheduled send {config.company_id.id}")
+                continue
+            webhook_limit = 10
+            if config.webhook_product_limit:
+                webhook_limit = config.webhook_product_limit
+                logger.debug(f"Using webhook limit from config: {webhook_limit}")
+            logger.debug("## SCHEDULE SEND WEBHOOKS ##")
+            wh_records = self.env["yuju.webhook.record"]
+            wh_ids = wh_records.search([
+                ('event', '=', 'stock_update'), 
+                # ('product_id', '=', False), 
+                ('state', '=', 'draft'),
+                ('company_id', '=', config.company_id.id)
+            ], limit=webhook_limit, order="date_webhook asc")
+            
+            if wh_ids.ids:             
+                logger.debug(f"## SEND WEBHOOKS: {wh_ids.ids} ##")
+                for wh in wh_ids:
+                    wh.send_webhook()
+        return True
+
+    def show_qty(self):
+        qty_available = self.with_context({'location' : 8}).qty_available
+        free_qty = self.with_context({'location' : 8}).free_qty
+        post_message = f"Qty {qty_available}."
+        post_message2 = f"Free Qty {free_qty}."
+        logger.debug(f"## QTY IN BRANCH: {post_message}")
+        logger.debug(f"## QTY IN BRANCH: {post_message2}")
+
+    def send_webhook_action(self, auto_send=True, config=None):
         """
         :param product_id:
         :type product_id: int
         :return:
         :rtype: dict
-        """        
-        product_ids = self.search([('id_product_madkting', '!=', False)])
-
-        if not product_ids:
-            return results.error_result('product_not_found',
-                                        'product_id not found')
-
-        for product in product_ids:
-            try:
-                notifier.send_stock_webhook(self.env, product, company_id)
-            except Exception as ex:
-                logger.debug("###Exception Ocurred on Sending Webhook")
-                logger.debug(ex)        
-            
-        return results.success_result()
-
-    @api.model
-    def send_webhook_by_id_product_madkting(self, id_product_madkting, company_id):
         """
-        :param id_product_madkting:
-        :type id_product_madkting: int
+        logger.debug(f"Env: {self.env.company}")
+        logger.debug(f"Cr: {self.env.cr}")
+        logger.debug(f"Dbname: {self.env.cr.dbname}")
+        logger.debug(f"Autosend: {auto_send}")
+
+        product_id = self.ids[0] if self.ids else None
+
+        if not config:
+            logger.debug("Config not found in params.")
+            config = self.env['madkting.config'].get_config()
+            if not config:
+                logger.warning("No config set in webhook listener")
+                return results.error_result('config_not_found', 'No configuration found for webhook')
+        
+        company_id = config.company_id.id if config.company_id else None
+
+        if not company_id:
+            logger.warning("No company id for record")
+            return results.error_result('company_not_found', 'No company found for webhook')
+
+        if not config.webhook_stock_enabled or not config.stock_source_multi:
+            post_message = "stock webhook not enabled in config"
+            self.message_post(body=post_message)
+
+        if config.webhook_product_mapped and not self.id_product_madkting:
+            self.message_post(body="Error al lanzar webhook: El producto no esta mapeado con Yuju")
+            return
+        
+        location_ids = self._get_location_ids(config)
+
+        locations = self.env["stock.location"].browse(location_ids)
+
+        stock_data = {
+            "product_id" : product_id,
+            "company_id" : company_id,
+            "default_code" : self.default_code,
+            "stock" : 0,
+            "quantities": {}
+        }
+        
+        for location_id in locations.ids:
+            try:
+                qty_in_branch = self.with_context({"location" : location_id}).free_qty
+                stock_data['quantities'].update({
+                    str(location_id) : qty_in_branch
+                })
+                stock_data['stock'] += qty_in_branch
+            except Exception as e:
+                logger.exception(f"Error getting product stock: {e}")
+
+        wh_records = self.env["yuju.webhook.record"]
+        wh_records.prepare_webhook_cron(webhook_body=[stock_data], company_id=company_id, type_webhook='stock', auto_send=auto_send, product_id=product_id)
+
+        return results.success_result()
+    
+    def send_price_webhook_action(self):
+        """
+        :param product_id:
+        :type product_id: int
         :return:
         :rtype: dict
         """
-        product_ids = self.search([('id_product_madkting', '=', id_product_madkting)])
+        logger.debug(f"Env: {self.env.company}")
+        logger.debug(f"Cr: {self.env.cr}")
+        logger.debug(f"Dbname: {self.env.cr.dbname}")
+        for product in self:
+            # if not product.id_product_madkting:
+            #     product.message_post(body="Error al lanzar webhook: El producto no esta mapeado con Yuju")
+            #     return
+            config_ids = self.env['madkting.config'].search([])
+            for config in config_ids:
+                if not config.webhook_price_enabled:
+                    post_message = "price webhook not enabled in config"
+                    product.message_post(body=post_message)
+                    continue
+                company_id = config.company_id.id
 
-        if not product_ids:
-            return results.error_result('product_not_found',
-                                        'product_id not found')
-
-        for product in product_ids:
-            try:
-                notifier.send_stock_webhook(self.env, product.id, company_id)
-            except Exception as ex:
-                logger.debug("###Exception Ocurred on Sending Webhook")
-                logger.debug(ex)        
-            
+                try:
+                    self.update_price_webhook([product], company_id)
+                except Exception as ex:
+                    logger.debug("###Exception Ocurred on Sending Price Webhook")
+                    logger.debug(ex)
+                    post_message = f"Error sending price webhook {product.name}: {ex}"
+                    product.message_post(body=post_message)
         return results.success_result()
+
+    @api.model
+    def get_stock_data(self, location_id):
+        config = self.env['madkting.config'].get_config()
+        if config and config.webhook_product_mapped:
+            product_ids = self.with_context(
+                prefetch_fields=[
+                    'id_product_madkting', 
+                    'default_code',
+                    'lst_price'
+                ]).search([
+                    ('id_product_madkting', '!=', False)])
+        else:
+            product_ids = self.with_context(
+                prefetch_fields=[
+                    'id_product_madkting', 
+                    'default_code'
+                ]).search([
+                    ('is_storable', '=', True),
+                    ('default_code', '!=', False)
+                ])
+        
+        company_id = config.company_id.id if config and config.company_id else None
+        location_ids = self._get_location_ids(config, with_channels=False)
+        stock_data = self.get_stock_products(
+            products=product_ids,
+            location_ids=location_ids,
+            company_id=company_id
+        )
+        product_data = []
+        for el in stock_data:
+            product_data.append({
+                "product_id" : str(el['product_id']),
+                "sku" : el['default_code'],
+                # "price" : el['stock'],
+                "stock" : el['stock']
+            })
+        logger.debug("## STOCK DATA ##")
+        logger.debug(product_data)
+        # response = {"data" : [product_data]}
+        return results.success_result(product_data)
+    
+    # @api.model
+    # def get_stock_product(self, product_ids, company_id=None):
+    #     if not product_ids:
+    #         return results.error_result("required_param", f"Product_ids param required {product_ids}")
+
+    #     if company_id:
+    #         config_ids = self.env['madkting.config'].search([("company_id", "=", int(company_id))])
+    #     else:
+    #         config_ids = self.env['madkting.config'].search([])
+
+    #     if not config_ids:
+    #         return results.error_result("not_found", f"Config not found {company_id}")        
+
+    #     product_ids = self.env["product.product"].search([("id", "in", product_ids)])
+
+    #     if not product_ids:
+    #         return results.error_result("not_found", f"Product not found {product_ids}")
+        
+    #     product_company = {}
+        
+    #     for config in config_ids:
+
+    #         company_id = config.company_id.id
+    #         product_company[str(company_id)] = []
+
+    #         location_ids = []
+    #         stock_locations = config.stock_source_multi
+    #         if config.stock_source_channels:
+    #             stock_locations = f"{stock_locations},{config.stock_source_channels}"
+
+    #         for location in stock_locations.split(','):
+    #             location_id = int(location)
+    #             if location_id not in location_ids:
+    #                 location_ids.append(location_id)
+
+    #         for product in product_ids:
+    #             product_stock, locations = self._get_product_stock(product, location_ids, company_id)
+    #             product_company[str(company_id)].append(product_stock)
+
+    #     logger.debug("## STOCK DATA ##")
+    #     logger.debug(product_company)
+    #     return results.success_result(product_company)
+
+    # @api.model
+    # def send_webhook_by_id_product_madkting(self, id_product_madkting, company_id):
+    #     """
+    #     :param id_product_madkting:
+    #     :type id_product_madkting: int
+    #     :return:
+    #     :rtype: dict
+    #     """
+    #     product_ids = self.search([('id_product_madkting', '=', id_product_madkting)])
+
+    #     if not product_ids:
+    #         return results.error_result('product_not_found',
+    #                                     'product_id not found')
+
+    #     for product in product_ids:
+    #         try:
+    #             yuju_records = self.env["yuju.webhook.record"]
+    #             yuju_records.prepare_webhook(product, company_id)
+    #         except Exception as ex:
+    #             logger.debug("###Exception Ocurred on Sending Webhook")
+    #             logger.debug(ex)        
+            
+    #     return results.success_result()
 
     @api.model
     def _create_supplier_product(self, supplier_data):  
@@ -137,6 +647,11 @@ class ProductProduct(models.Model):
                 pass
 
     @api.model
+    def update_mapping_fields(self, product_data):
+        product_data = self.env['yuju.mapping.field'].get_field_mappings(product_data, 'product.product')
+        return product_data
+
+    @api.model
     def update_product(self, product_data, product_type, id_shop=None):
         """
         :param product_data:
@@ -146,9 +661,9 @@ class ProductProduct(models.Model):
         :return:
         :rtype: dict
         """
-        # logger.debug("### UPDATE PRODUCT ###")
-        # logger.debug(product_data)
-        # logger.debug(id_shop)
+        logger.debug("### UPDATE PRODUCT ###")
+        logger.debug(product_data)
+        logger.debug(id_shop)
         product_id = product_data.pop('id', None)
         if not product_id:
             return results.error_result('missing_product_id',
@@ -167,6 +682,13 @@ class ProductProduct(models.Model):
             supplier_data = product_data.pop('provider')
             product._create_supplier_product(supplier_data)
 
+        if 'type' in product_data and product_data['type'] == 'product':
+            product_data['type'] = 'consu'
+            # product_data['is_storable'] = True
+
+        if 'detailed_type' in product_data:
+            product_data.pop('detailed_type')
+
         fields_validation = self.__validate_update_fields(fields=product_data,
                                                           product_type=product_type)
         if not fields_validation['success']:
@@ -183,37 +705,7 @@ class ProductProduct(models.Model):
             product_data.pop('is_multi_shop')
             is_multi_shop = True
 
-        if id_shop:
-            mapping = self.env['yuju.mapping.product']
-            id_product_madkting = product_data.get('id_product_madkting')
-            default_code = product_data.get('default_code')
-            mapping_data = {     
-                'product_id' : product_id,
-                'id_product_yuju' : id_product_madkting,
-                'id_shop_yuju' : id_shop,
-                'default_code' : default_code,
-                'state' : 'active'
-            }
-
-            if not is_mapping and product.product_tmpl_id.attribute_line_ids and not product_data.get('attributes'):
-                logger.debug("Product Template related not update mapping in multi shop")
-            else:
-                try:
-                    mapping.create_or_update_product_mapping(mapping_data)
-                except Exception as ex:
-                    logger.exception(ex)
-                    return results.error_result(code='save_product_update_exception',
-                                                description='Product mapping couldn\'t be created because '
-                                                            'of the following exception: {}'.format(ex))
-
-        if 'l10n_mx_edi_code_sat_id' in fields_validation['data']:
-            sat_code = fields_validation['data']['l10n_mx_edi_code_sat_id']
-            sat_code_ids = self.env['l10n_mx_edi.product.sat.code'].search([('code', '=', sat_code)], limit=1)
-            if sat_code_ids:
-                fields_validation['data']['l10n_mx_edi_code_sat_id'] = sat_code_ids[0].id
-            else:
-                fields_validation.pop('l10n_mx_edi_code_sat_id')
-                fields_validation['data'].pop('l10n_mx_edi_code_sat_id')
+        fields_validation['data'] = self.update_mapping_fields(fields_validation['data'])
 
         if 'image' in fields_validation['data']:
             fields_validation['data']['image_1920'] = fields_validation['data'].pop('image', None)
@@ -231,43 +723,88 @@ class ProductProduct(models.Model):
             except Exception as e:
                 logger.debug(e)
                 pass
+        
+        related_skus = []
+        related_ids = []
+        
+        parent = product.product_tmpl_id
+        for pv in parent.product_variant_ids:
+            related_skus.append(pv.default_code)
+            related_ids.append(pv.id_product_madkting)
+
+        logger.debug("Related Skus")
+        logger.debug(related_skus)
+
+        logger.debug("Related Ids")
+        logger.debug(related_ids)
+
+        updatable_sku = fields_validation['data'].get('default_code')
+        id_yuju = fields_validation['data'].get('id_product_madkting')
+
+        is_related = False if updatable_sku not in related_skus and id_yuju not in related_ids else True
+
+        logger.debug("Is Related")
+        logger.debug(is_related)
+        
         # Se quita el default code de la actualizacion, agreado en multi shop, este campo no es editable desde yuju 
         # ya que una vez asignado no puede modificarse
         if 'default_code' in fields_validation['data']:
-            fields_validation['data'].pop('default_code')
+            
+            if product.default_code:
+                fields_validation['data'].pop('default_code')
 
         # Si el producto cuenta actualmente con un id_product_madkting, el mapeo ya esta hecho y no debe sobre-escribirse
         # En caso de querer hacer el mapeo, debe eliminarse por script o manualmente el id_product_madkting del registro
         # Esto permitira que las nuevas tiendas mapeadas a este mismo producto no reemplacen la referencia original y 
         # se manejen por la tabla de mapeo al enviar el webhoook 
-        if product.id_product_madkting and 'id_product_madkting' in fields_validation['data']:
-            fields_validation['data'].pop('id_product_madkting')
+        if 'id_product_madkting' in fields_validation['data']:
+
+            if product.id_product_madkting:
+                fields_validation['data'].pop('id_product_madkting')
 
         # Si se realiza un mapeo a un catalogo que ya esta mapeado actualmente, el formulario tendra el campo company_id
         # con un valor establecido, lo cual para efectos del modulo multi shop, el catalogo de productos sera compartido
         # por lo que el campo company_id se establecera como False
-        if is_multi_shop and product.company_id:
-            fields_validation['data']['company_id'] = False
+        if is_multi_shop and config.product_shared_catalog_enabled:
+            if "company_id" in fields_validation['data'] and fields_validation['data']['company_id']:
+                fields_validation['data']['company_id'] = False
         
-        # logger.debug("#### DATA TO WRITE ####")
-        # logger.debug(fields_validation['data'])
+        logger.debug("#### DATA TO WRITE ####")
+        logger.debug(fields_validation['data'])
 
-        if "barcode" in fields_validation["data"] and fields_validation["data"]["barcode"] == "":
-            # Drop empty barcode because constraint product_product_barcode_uniq
-            fields_validation["data"].pop("barcode")
+        if "barcode" in fields_validation["data"]: 
+            barcode = fields_validation["data"]["barcode"]
+            if not barcode:
+                # Drop empty barcode because constraint product_product_barcode_uniq
+                fields_validation["data"].pop("barcode")
+                logger.debug("Pop barcode..")
+            else:
+                logger.debug("## SEARCH BARCODE UPDATE ##")
+                product_ids = self.with_context(active_test=False).search([('barcode', '=', barcode), ('id', '!=', product_id)])
+                if product_ids.ids:
+                    logger.warning(f'El codigo de barras ya esta previamente registrado {barcode}')
 
+                    if config.validate_barcode_exists:               
+                        return results.error_result(code='duplicated_barcode',
+                                                description='El codigo de barras ya esta previamente registrado')
+                    else:
+                        fields_validation["data"].pop("barcode")
+
+        logger.debug("## Fields validation data")
+        logger.debug(fields_validation['data'])
         try:
             product.write(fields_validation['data'])
-            if config and config.update_parent_list_price and fields_validation['data'].get('list_price'):
-                logger.debug("## UPDATE PARENT PRICE {}##".format(product.product_tmpl_id))
-                product_list_price = fields_validation['data'].get('list_price')
-                product.product_tmpl_id.write({"list_price" : product_list_price})
+            # if config and config.update_parent_list_price and fields_validation['data'].get('list_price'):
+            #     logger.debug("## UPDATE PARENT PRICE {}##".format(product.product_tmpl_id))
+            #     product_list_price = fields_validation['data'].get('list_price')
+            #     product.product_tmpl_id.write({"list_price" : product_list_price})
 
         except exceptions.AccessError as ae:
             logger.exception(ae)
             return results.error_result('access_error', ae)
         except Exception as ex:
             logger.exception(ex)
+            logger.debug("AQUI")
             return results.error_result('save_product_update_exception', ex)
         else:
             return results.success_result()
@@ -292,7 +829,11 @@ class ProductProduct(models.Model):
         """
         logger.debug("### CREATE VARIATION ###")
         logger.debug(variation_data)
+        config = self.env['madkting.config'].get_config()
         parent_id = variation_data.pop('product_id', None)
+        default_code = variation_data.get('default_code')
+        id_product_madkting = variation_data.get('id_product_madkting')
+
         if not parent_id:
             return results.error_result('missing_product_id',
                                         'product_id is required')
@@ -303,18 +844,58 @@ class ProductProduct(models.Model):
                 'product_not_found',
                 'Cannot find the parent product for this variation'
             )
+
+        domain = [("default_code", "=", default_code), ("product_tmpl_id", "=", parent.product_tmpl_id.id)]
+        logger.debug(domain)
+        variation_exist = self.search(domain, limit=1)
+        if variation_exist:
+            logger.debug("## VARIATION EXISTS ###")
+            logger.debug(variation_exist)
+            logger.debug(variation_exist.product_tmpl_id)
+            logger.debug(parent_id)
+            logger.debug(id_product_madkting)
+            if not variation_exist.id_product_madkting:
+                variation_exist.write({"id_product_madkting": id_product_madkting})
+
+            variation_data = variation_exist.get_data()
+            logger.debug(variation_data)
+            return results.success_result(variation_data)
+
         if variation_data.get('cost'):
             variation_data['standard_price'] = variation_data.pop('cost', None)
+
+        if 'type' in variation_data and variation_data['type'] == 'product':
+            variation_data['type'] = 'consu'
+            variation_data['is_storable'] = True
+
+        if 'detailed_type' in variation_data:
+            variation_data.pop('detailed_type')
+
         fields_validation = self.__validate_update_fields(variation_data,
                                                           'variation')
         if not fields_validation['success']:
             return fields_validation
 
-        if variation_data.get('barcode'):
-            product_ids = self.search([('barcode', '=', variation_data.get('barcode', ''))], limit=1)
-            if product_ids.ids:
-                return results.error_result(code='duplicated_barcode',
-                                            description='El codigo de barras ya esta previamente registrado')
+        logger.debug("## Fields validation")
+        logger.debug(fields_validation)
+
+        if "barcode" in variation_data: 
+            barcode = variation_data.get("barcode")
+            if not barcode:
+                # Drop empty barcode because constraint product_product_barcode_uniq
+                variation_data.pop("barcode")
+                logger.debug("Pop barcode..")
+            else:
+                logger.debug("## SEARCH BARCODE UPDATE ##")
+                product_ids = self.with_context(active_test=False).search([('barcode', '=', barcode)])
+                if product_ids.ids:
+                    logger.warning(f'El codigo de barras ya esta previamente registrado {barcode}')
+
+                    if config.validate_barcode_exists:               
+                        return results.error_result(code='duplicated_barcode',
+                                                description='El codigo de barras ya esta previamente registrado')
+                    else:
+                        variation_data.pop("barcode")        
 
         attributes_structure = parent.attribute_lines_structure()
         variant_attributes = fields_validation['data'].pop('attributes')
@@ -337,34 +918,28 @@ class ProductProduct(models.Model):
 
         current_variations_set = parent.get_variation_sets()
         v_data = fields_validation['data']
+        logger.debug("## Current variation set")
+        logger.debug(current_variations_set)
 
-        mapping = self.env['yuju.mapping.product']
+        logger.debug("## V Data")
+        logger.debug(v_data)
+
+        logger.debug("## Attribute values")
+        logger.debug(attribute_values)
+
+        logger.debug("## Variant Attribute")
+        logger.debug(variant_attributes)
 
         if attribute_values in current_variations_set:
             for variation in parent.product_variant_ids:
-                if variant_attributes == variation.get_data().get('attributes'):                    
-                    if id_shop:
-                        id_product_madkting = v_data.get('id_product_madkting')
-                        default_code = v_data.get('default_code')
-                        mapping_data = {
-                            'product_id' : variation.id,
-                            'id_product_yuju' : id_product_madkting,
-                            'id_shop_yuju' : id_shop,
-                            'default_code' : default_code,
-                            'state' : 'active'
-                        }
-                        try:
-                            mapping.create_or_update_product_mapping(mapping_data)
-                        except Exception as ex:
-                            logger.exception(ex)
-                            return results.error_result(code='save_product_update_exception',
-                                                        description='Product mapping couldn\'t be created because '
-                                                                    'of the following exception: {}'.format(ex))
-                            
+
+                logger.debug("## Variant Data Attributes #1 ")
+                logger.debug(variation.get_data().get('attributes'))
+
+                if variant_attributes == variation.get_data().get('attributes'):
                     variation.write(fields_validation['data'])
                     return results.success_result(variation.get_data())
 
-        new_variation_values_ids = list()
         new_attribute_lines = []
         for attribute, value in variant_attributes.items():
             # logger.in0fo(attributes_structure)
@@ -406,6 +981,7 @@ class ProductProduct(models.Model):
         attribute_line_ids = [
                 (1, a['attribute_line_id'], {'value_ids': [(4, a['value_id'])]}) for a in new_attribute_lines
         ]
+        # logger.debug("## Attribute line ids")
         # logger.debug(attribute_line_ids)
         try:
             parent.product_tmpl_id.write({'attribute_line_ids': attribute_line_ids})
@@ -416,27 +992,16 @@ class ProductProduct(models.Model):
         new_variation_data = None
         v_data = fields_validation['data']
 
+        # logger.debug("## New variation data 222")
+        # logger.debug(new_variation_data)
+
+        # logger.debug("## V data")
+        # logger.debug(v_data)
+
         for variation in parent.product_variant_ids:
-            if variant_attributes == variation.get_data().get('attributes'):
-                # logger.debug(fields_validation['data'])
-                if id_shop:
-                    id_product_madkting = v_data.get('id_product_madkting')
-                    default_code = v_data.get('default_code')
-                    mapping_data = {
-                        'product_id' : variation.id,
-                        'id_product_yuju' : id_product_madkting,
-                        'id_shop_yuju' : id_shop,
-                        'default_code' : default_code,
-                        'state' : 'active'
-                    }
-                    try:
-                        mapping.create_or_update_product_mapping(mapping_data)
-                    except Exception as ex:
-                        logger.exception(ex)
-                        return results.error_result(code='save_product_update_exception',
-                                                    description='Product mapping couldn\'t be created because '
-                                                                'of the following exception: {}'.format(ex))
-                       
+            logger.debug("## Variant Data Attributes #2 ")
+            logger.debug(variation.get_data().get('attributes'))
+            if variant_attributes == variation.get_data().get('attributes'):                      
                 variation.write(fields_validation['data'])
                 new_variation_data = variation.get_data()
                 break
@@ -456,6 +1021,12 @@ class ProductProduct(models.Model):
         :return:
         :rtype: dict
         """
+        if not product_id:
+            return results.error_result(
+                'product_not_given',
+                'The product id is null, it should be an integer'
+            )
+
         product = self.with_context(active_test=only_active) \
                       .search([('id', '=', product_id)], limit=1)
 
@@ -604,16 +1175,12 @@ class ProductProduct(models.Model):
 
         if product_type == 'product':
             updatable_fields = self.__update_product_fields
-            
-            if config.product_custom_fields:
-                for field in config.product_custom_fields.split(','):
-                    updatable_fields.update({field : str})
 
         else:
             updatable_fields = self.__update_variation_fields
 
-            if config and config.update_parent_list_price:
-                updatable_fields.update({'list_price': (int, float)})
+            # if config and config.update_parent_list_price:
+            #     updatable_fields.update({'list_price': (int, float)})
 
         for field, value in fields.items():
             if field in updatable_fields:

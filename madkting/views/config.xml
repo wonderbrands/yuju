@@ -1,0 +1,153 @@
+<odoo>
+  <data>
+
+    <record model="ir.ui.view" id="madkting.madkting_config_list_view">
+      <field name="name">madkting.config.list.view</field>
+      <field name="model">madkting.config</field>
+      <field name="type">list</field>
+      <field name="arch" type="xml">
+        <list string="Configuration" >
+          <field name="company_id"/>
+          <field name="dbname"/>
+          <field name="webhook_stock_enabled"/>
+          <field name="stock_source_multi"/>
+        </list>
+      </field>
+    </record>
+
+    <record model="ir.ui.view" id="madkting.madkting_config_form_view">
+      <field name="name">madkting.config.form.view</field>
+      <field name="model">madkting.config</field>
+      <field name="type">form</field>
+      <field name="arch" type="xml">
+        <form string="Configuration" >
+          <group>
+            <group>
+              <separator string="General"/>
+              <field name="company_id"/>
+              <field name="dbname"/>
+              <field name="service_url"/>
+            </group>
+          </group>
+          <notebook>
+            <page string="General">
+              <group>
+                <group>
+                  <field name="webhook_stock_enabled"/>
+                  <field name="webhook_auto_send_enabled"/>
+                  <field name="webhook_product_mapped" />
+                  <field name="webhook_stock_cron_enabled"/>
+                  <field name="webhook_product_batchsize"/>
+                  <field name="webhook_product_limit"/>
+                  <field name="stock_source_multi"/>
+                  <field name="stock_source_channels"/>
+                  <!-- <field name="stock_locations_children"/> -->
+                  <field name="simple_stock_locations"/>
+                  <!-- <field name="stock_quant_available_quantity_enabled"/> -->
+                  <field name="webhook_price_enabled"/>
+                  <!-- <field name="validate_price_webhook_enabled"/> -->
+                  <field name="default_pricelist"/>
+                  <field name="log_enabled"/>
+                  <field name="order_detail_enabled"/>
+                  <field name="webhook_detail_enabled"/>
+                </group>
+                <group>
+                  <field name="validate_partner_exists"/>
+                  <field name="partner_name_invoice_address"/>
+                  <field name="validate_barcode_exists"/>
+                  <field name="simple_description_enabled"/>
+                  <field name="product_shared_catalog_enabled" />
+                  <!-- <field name="search_state_by_mapping" />
+                  <field name="search_city_by_mapping" /> -->
+                </group>
+              </group>
+            </page>
+            <page string="Ventas">
+              <group>
+                <group>                  
+                  <field name="validate_pack_id_enabled"/>
+                  <field name="validate_order_duplicated_confirm"/>
+                  <field name="orders_unconfirmed"/>
+                  <field name="orders_unconfirmed_by_stock"/>
+                  <field name="orders_unconfirmed_stock_src"/>
+                  <field name="orders_unconfirmed_by_ff_type"/>
+                  <field name="orders_unconfirmed_ff_types"/>
+                  <field name="validate_address_invoice"/>
+                  <field name="required_invoice_address_fields"/>
+                </group>
+                <group>
+                  <field name="shipping_webhook_enabled"/>
+                  <field name="invoice_doctype_enabled"/>
+                  <field name="order_search_days"/>
+                  <field name="update_order_name"/>
+                  <field name="update_order_name_pack"/>
+                  <field name="orders_force_cancel"/>
+                  <field name="orders_cancel_related_documents"/>
+                  <field name="orders_line_warehouse_enabled"/>
+                  <field name="order_remove_tax_default"/>
+                </group>
+              </group>
+            </page>
+            <page string="Facturas">
+              <group>
+                <group>
+                  <field name="invoice_unconfirmed"/>
+                  <field name="invoice_webhook_enabled"/>
+                  <field name="auto_webhook_after_invoice_enabled"/>
+                  <field name="invoice_auto_retry"/>
+                  <field name="invoice_max_retries"/>
+                  <field name="invoice_before_days"/>
+                  <field name="invoice_max_records"/>
+                  <field name="invoice_prefix_id_folio"/>
+                  <field name="invoice_country" required="invoice_webhook_enabled == True" invisible="invoice_webhook_enabled == False" />
+                  <field name="invoice_currency" required="invoice_webhook_enabled == True" invisible="invoice_webhook_enabled == False"/>
+                  <field name="invoice_prefix_file" required="invoice_webhook_enabled == True" invisible="invoice_webhook_enabled == False"/>
+                  <field name="invoice_prefix_pdf_file" invisible="invoice_webhook_enabled == False"/>
+                  <field name="invoice_add_pdf_file" invisible="invoice_webhook_enabled == False"/>
+                  <field name="invoice_print_pdf_file" invisible="invoice_webhook_enabled == False"/>
+                  <field name="invoice_save_pdf_attachment" invisible="invoice_webhook_enabled == False"/>
+                  <field name="invoice_validate_attached_formats" invisible="invoice_webhook_enabled == False"/>
+                </group>
+                <group>
+                  <field name="invoice_serie" invisible="invoice_webhook_enabled == False"/>
+                  <field name="invoice_serie_ticket" invisible="invoice_webhook_enabled == False"/>
+                  <field name="invoice_doc_type" required="invoice_webhook_enabled == True" invisible="invoice_webhook_enabled == False"/>
+                  <field name="invoice_separator" invisible="invoice_webhook_enabled == False"/>
+                  <field name="invoice_partner_vat" invisible="invoice_webhook_enabled == False"/>
+                </group>
+              </group>
+            </page>
+            <page string="Dropship">
+              <group>
+                <group>                  
+                  <field name="dropship_enabled"/>
+                  <field name="dropship_picking_type" required="dropship_enabled == True" invisible="dropship_enabled == False" />
+                  <field name="dropship_webhook_enabled" required="dropship_enabled == True" invisible="dropship_enabled == False"/>
+                  <field name="dropship_default_route_id" required="dropship_enabled == True" invisible="dropship_enabled == False"/>
+                  <field name="dropship_route_id" required="dropship_enabled == True" invisible="dropship_enabled == False"/>
+                  <field name="dropship_mto_route_id" required="dropship_enabled == True" invisible="dropship_enabled == False"/>
+                </group>
+                <group>
+                  
+                </group>
+              </group>
+            </page>
+          </notebook>
+        </form>
+      </field>
+    </record>
+
+    <record id="madkting.action_config_window" model="ir.actions.act_window">
+      <field name="name">Madkting Config</field>
+      <field name="res_model">madkting.config</field>
+      <field name="view_id"></field>
+      <field name="view_mode">list,form</field>
+      <field name="domain">[]</field>
+    </record>
+
+    <!-- <menuitem name="Yuju" id="madkting.menu_root"/>
+    <menuitem name="Config" id="madkting.menu_config" parent="madkting.menu_root" groups="madkting_api_group"/>
+    <menuitem name="Configuracion" id="madkting.menu_madkting_config" parent="madkting.menu_config" action="madkting.action_config_window" position="1"/> -->
+
+  </data>
+</odoo>

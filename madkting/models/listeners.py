@@ -1,7 +1,6 @@
 from odoo.addons.component.core import Component
 from ..log.logger import logger
-from ..notifier import notifier
-
+from ..log.logger import logs
 
 class MadktingStockMoveListener(Component):
     _name = 'madkting.stock.move.listener'
@@ -36,15 +35,36 @@ class MadktingStockMoveListener(Component):
         :param record:
         :return:
         """
-        config = self.env['madkting.config'].sudo().get_config()
+        if isinstance(record, bool):
+            logger.debug("Bool object for record")
+            return
 
-        if not config or not config.webhook_stock_enabled:
+        company_id = record.company_id.id if record and record.company_id else None
+        if not company_id:
+            logger.debug("No company id for record")
+            return
+        
+        config = self.env['madkting.config'].get_config(company_id)
+
+        if not config:
+            logger.warning("No config set in webhook listener")
+            return
+        
+        if not config.webhook_stock_enabled:
+            logger.debug("Webhook stock not enabled")
             return
 
         record_state = getattr(record, 'state', None)
-        if record_state in ['assigned', 'done'] and record.product_id.id_product_madkting:            
-            try:
-                notifier.send_stock_webhook(self.env, record.product_id, record.company_id.id)
-            except Exception as ex:
-                logger.exception(ex)
-        
+        if record_state in ['assigned', 'done', 'cancel']:
+
+            if config.webhook_stock_cron_enabled:
+                if not record.product_id.webhook_pending:
+                    logger.info("Update product webhook pending")
+                    record.product_id.webhook_pending = True
+            else:
+                logger.info("Webhook stock cron not enabled")
+                auto_send = config.webhook_auto_send_enabled
+                record.product_id.send_webhook_action(auto_send=auto_send, config=config)
+
+
+# https://apps.yuju.io/api/sales/in/2301?id_shop=1085876
