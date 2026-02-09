@@ -20,7 +20,7 @@ class MadktingWebhook(models.Model):
     __allowed_hook_types = ['stock', 'price']
 
     hook_type = fields.Selection([('stock', 'Stock'), ('price', 'Price')], string='Webhook type', required=True, default='stock')
-    url = fields.Char('Webhook endpoint', size=400, required=False)
+    url = fields.Char('Webhook endpoint', size=400, required=False, default="product_update")
     id_shop = fields.Char('Id Shop Yuju', required=True, default="0")
     active = fields.Boolean('Active', default=True, required=True)
     company_id = fields.Many2one('res.company', string='Empresa', required=True)
@@ -194,9 +194,17 @@ class MadktingWebhook(models.Model):
             config = self.env['madkting.config'].get_config(company_id)
 
             if config.webhook_product_mapped:
-                product_ids = self.env['product.product'].search([('id_product_madkting', '!=', False)])
+                product_ids = self.env['product.product'].with_context(
+                    prefetch_fields=[
+                        'default_code', 
+                        'id_product_madkting'
+                    ]).search([('id_product_madkting', '!=', False)])
             else:
-                product_ids = self.env['product.product'].search([('detailed_type', '=', 'product')])
+                product_ids = self.env['product.product'].with_context(
+                    prefetch_fields=[
+                        'default_code', 
+                        'id_product_madkting'
+                    ]).search([('is_storable', '=', True), ('default_code', '!=', False)])
 
             if not product_ids:
                 user_id = self.env.user.id
@@ -204,10 +212,34 @@ class MadktingWebhook(models.Model):
                 rec.message = f"No products found, User: {user_id}, Company User: {user_company_id}, Company Processed: {company_id}"
                 return False
             
-            wh_records = self.env["yuju.webhook.record"]
+            # En esta parte como son webhooks se va a enviar tambien incluidas las ubicaciones de stock de canales
+            location_ids = self.env['product.product']._get_location_ids(config, with_channels=True)
+            stock_data = self.env['product.product'].get_stock_products(
+                products=product_ids,
+                location_ids=location_ids,
+                company_id=company_id
+            )
+            product_id = None
+            batchsize = config.webhook_product_batchsize if config.webhook_product_batchsize > 0 else 20
             
-            for product in product_ids:                
-                wh_records.prepare_webhook(product, company_id, rec.id_shop)
+            wh_records = self.env["yuju.webhook.record"]
+            for product_data in self.env['product.product'].split_into_chunks(stock_data, batchsize):
+                # product_data = self.process_webhook_chunk(product_ids=prod_ids, config=config, company_id=company_id, location_ids=location_ids)
+                auto_send = config.webhook_auto_send_enabled
+            
+                if batchsize == 1 and len(product_data) == 1:
+                    product_id = product_data[0].get("product_id")
+
+                wh_records.prepare_webhook_cron(
+                    webhook_body=product_data, 
+                    company_id=company_id, 
+                    type_webhook='stock', 
+                    auto_send=auto_send,
+                    product_id=product_id
+                    )
+
+            # for product in product_ids:                
+            #     wh_records.prepare_webhook(product, company_id, rec.id_shop)
 
             rec.message = f"Total processed: {len(product_ids.ids)}"
             rec.updated_at = datetime.now()
@@ -217,131 +249,134 @@ class WebhookRecords(models.Model):
 
     _name = "yuju.webhook.record"
     _description = 'Yuju Webhook Record'
+    _order = "date_webhook desc"
 
     product_id = fields.Many2one("product.product", string="Producto")
     company_id = fields.Many2one("res.company", string="Empresa")
     date_webhook = fields.Datetime(string="Fecha Webhook")
+    date_send_webhook = fields.Datetime(string="Envio Webhook")
+    date_response_webhook = fields.Datetime(string="Respuesta Webhook")
     event = fields.Selection([("stock_update", "Stock Updated"), ("price_update", "Price Update")], string="Event Type")
     data = fields.Text(string="Webhook Data")
     url = fields.Text("URL Webhook")
     message = fields.Text("Mensaje")
     state = fields.Selection([("draft", "Pendiente"), ("done", "Realizado"), ("error", "Error")], string="Status")
 
-    @api.model
-    def prepare_webhook(self, product, company_id, id_shop=None):
-        """
-        TODO: register webhook failures in order to implement "retries"
-        :param env:
-        :type env: Environment
-        :param product_id:
-        :type product_id: int
-        :param hook_id:
-        :type hook_id: int
-        :return:
-        """
-        logger.debug('### SEND STOCK WEBHOOK ###')
-        product_id = product.id
-        logger.debug("Producto: {}".format(product_id))
-        # if not product.company_id:
-        #     company_id = env.user.company_id.id
-        # else:
-        #     company_id = product.company_id.id
-        logger.debug("Company: {}".format(company_id))
-        # product = env['product.product'].search([('id', '=', product_id)], limit=1)
-        config = self.env['madkting.config'].get_config(company_id)
+    # @api.model
+    # def prepare_webhook(self, product, company_id, id_shop=None):
+    #     """
+    #     TODO: register webhook failures in order to implement "retries"
+    #     :param env:
+    #     :type env: Environment
+    #     :param product_id:
+    #     :type product_id: int
+    #     :param hook_id:
+    #     :type hook_id: int
+    #     :return:
+    #     """
+    #     logger.debug('### SEND STOCK WEBHOOK ###')
+    #     product_id = product.id
+    #     logger.debug("Producto: {}".format(product_id))
+    #     # if not product.company_id:
+    #     #     company_id = env.user.company_id.id
+    #     # else:
+    #     #     company_id = product.company_id.id
+    #     logger.debug("Company: {}".format(company_id))
+    #     # product = env['product.product'].search([('id', '=', product_id)], limit=1)
+    #     config = self.env['madkting.config'].get_config(company_id)
 
-        logger.debug("CONFIG RETURNED {}".format(config))
+    #     logger.debug("CONFIG RETURNED {}".format(config))
 
-        if not config:
-            logger.debug("### NO CONFIG FOUND FOR COMPANY {} ###".format(company_id))
-            return
+    #     if not config:
+    #         logger.debug("### NO CONFIG FOUND FOR COMPANY {} ###".format(company_id))
+    #         return
 
-        actual_dbname = self.env.cr.dbname
-        config_dbname = config.dbname
+    #     actual_dbname = self.env.cr.dbname
+    #     config_dbname = config.dbname
 
-        if actual_dbname != config_dbname:
-            logger.warning(f"Database configured is different from {actual_dbname}")
-            return
+    #     if actual_dbname != config_dbname:
+    #         logger.warning(f"Database configured is different from {actual_dbname}")
+    #         return
 
-        if config.dropship_enabled and not config.dropship_webhook_enabled:
-            logger.debug("### NO STOCK ON DROPSHIP WEBHOOK DISABLED ###")
-            return
+    #     if config.dropship_enabled and not config.dropship_webhook_enabled:
+    #         logger.debug("### NO STOCK ON DROPSHIP WEBHOOK DISABLED ###")
+    #         return
 
-        if not config.stock_source_multi:
-            logger.debug("### No se han definido las fuentes de stock ###")
-            return
+    #     if not config.stock_source_multi:
+    #         logger.debug("### No se han definido las fuentes de stock ###")
+    #         return
         
-        total_stock = 0
-        ubicaciones_stock = {}
-        location_ids = config.stock_source_multi.split(',')
-        location_ids = list(map(int, location_ids))
+    #     total_stock = 0
+    #     ubicaciones_stock = {}
+    #     location_ids = config.stock_source_multi.split(',')
+    #     location_ids = list(map(int, location_ids))
 
-        for location_id in location_ids:
-            logger.debug("Location ID {}".format(location_id))
-            location = self.env['stock.location'].search([('id', '=', location_id)], limit=1)
-            if location.id:
-                logger.debug("Location ID {} Found".format(location_id))
-                if config and config.stock_quant_available_quantity_enabled:
-                    qty_in_branch = product.with_context({'location' : location.id}).free_qty
-                    logger.debug("Location ID {} Qty: {}".format(location_id, qty_in_branch))
-                else:
-                    qty_in_branch = product.with_context({'location' : location.id}).qty_available
-                ubicaciones_stock.update({location.id : qty_in_branch})
-                total_stock += int(qty_in_branch)
-            else:
-                logger.debug("Location {} not found in company {}".format(location_id, company_id))
+    #     for location_id in location_ids:
+    #         logger.debug("Location ID {}".format(location_id))
+    #         location = self.env['stock.location'].search([('id', '=', location_id)], limit=1)
+    #         if location.id:
+    #             logger.debug("Location ID {} Found".format(location_id))
+    #             if config and config.stock_quant_available_quantity_enabled:
+    #                 qty_in_branch = product.with_context({'location' : location.id}).free_qty
+    #                 logger.debug("Location ID {} Qty: {}".format(location_id, qty_in_branch))
+    #             else:
+    #                 qty_in_branch = product.with_context({'location' : location.id}).qty_available
+    #             ubicaciones_stock.update({location.id : qty_in_branch})
+    #             total_stock += int(qty_in_branch)
+    #         else:
+    #             logger.debug("Location {} not found in company {}".format(location_id, company_id))
 
-        if config.stock_source_channels:
-            location_channel_ids = config.stock_source_channels.split(',')
-            location_channel_ids = list(map(int, location_channel_ids))
-            logger.debug(f"Locations Channels {location_channel_ids}")
+    #     if config.stock_source_channels:
+    #         location_channel_ids = config.stock_source_channels.split(',')
+    #         location_channel_ids = list(map(int, location_channel_ids))
+    #         logger.debug(f"Locations Channels {location_channel_ids}")
 
-            for location_id in location_channel_ids:
-                location = self.env['stock.location'].search([('id', '=', int(location_id))], limit=1)
-                if location.id:
-                    if config and config.stock_quant_available_quantity_enabled:
-                        qty_in_branch = product.with_context({'location' : location.id}).free_qty
-                    else:
-                        qty_in_branch = product.with_context({'location' : location.id}).qty_available
+    #         for location_id in location_channel_ids:
+    #             location = self.env['stock.location'].search([('id', '=', int(location_id))], limit=1)
+    #             if location.id:
+    #                 if config and config.stock_quant_available_quantity_enabled:
+    #                     qty_in_branch = product.with_context({'location' : location.id}).free_qty
+    #                 else:
+    #                     qty_in_branch = product.with_context({'location' : location.id}).qty_available
                     
-                    if location_id not in ubicaciones_stock:
-                        ubicaciones_stock.update({location.id : qty_in_branch})
+    #                 if location_id not in ubicaciones_stock:
+    #                     ubicaciones_stock.update({location.id : qty_in_branch})
 
 
-        if not ubicaciones_stock:
-            logger.debug("No quantitites found for location {} in company {}".format(location_id, company_id))
-            return
+    #     if not ubicaciones_stock:
+    #         logger.debug("No quantitites found for location {} in company {}".format(location_id, company_id))
+    #         return
 
-        domain = [
-            ('hook_type', '=', 'stock'),
-            ('active', '=', True),
-            ('company_id', '=', company_id)
-        ]
+    #     domain = [
+    #         ('hook_type', '=', 'stock'),
+    #         ('active', '=', True),
+    #         ('company_id', '=', company_id)
+    #     ]
 
-        if id_shop:
-            domain.append(('id_shop', '=', id_shop))
+    #     if id_shop:
+    #         domain.append(('id_shop', '=', id_shop))
 
-        webhook_suscriptions = self.env['madkting.webhook'].search(domain)
+    #     webhook_suscriptions = self.env['madkting.webhook'].search(domain)
 
-        webhook_body = {
-            'product_id': product.id,
-            'company_id': company_id,
-            'default_code': product.default_code,
-            'event': 'stock_update',
-            'quantities' : ubicaciones_stock,
-        }
+    #     webhook_body = {
+    #         'product_id': product.id,
+    #         'company_id': company_id,
+    #         'default_code': product.default_code,
+    #         'event': 'stock_update',
+    #         'quantities' : ubicaciones_stock,
+    #     }
 
-        for webhook in webhook_suscriptions:
-            """
-            TODO: if the webhook fails store it into a database for retry implementation
-            """
-            url_webhook = "{}/{}?id_shop={}".format(config.service_url, webhook.url, webhook.id_shop)
-            wh_record = self.create_webhook_record(product.id, company_id, webhook_body, url_webhook)
-            if wh_record.id and config.webhook_stock_enabled:
-                wh_record.send_webhook()
+    #     for webhook in webhook_suscriptions:
+    #         """
+    #         TODO: if the webhook fails store it into a database for retry implementation
+    #         """
+    #         url_webhook = "{}/{}?id_shop={}".format(config.service_url, webhook.url, webhook.id_shop)
+    #         wh_record = self.create_webhook_record(product.id, company_id, webhook_body, url_webhook)
+    #         if wh_record.id and config.webhook_stock_enabled:
+    #             wh_record.send_webhook()
 
     @api.model
-    def prepare_webhook_stock_cron(self, webhook_body, company_id):
+    def prepare_webhook_cron(self, webhook_body, company_id, type_webhook='stock', auto_send=False, product_id=None):
         """
         TODO: register webhook failures in order to implement "retries"
         :param env:
@@ -369,7 +404,7 @@ class WebhookRecords(models.Model):
             return
 
         domain = [
-            ('hook_type', '=', 'stock'),
+            ('hook_type', '=', type_webhook),
             ('active', '=', True),
             ('company_id', '=', company_id)
         ]
@@ -380,65 +415,67 @@ class WebhookRecords(models.Model):
             """
             TODO: if the webhook fails store it into a database for retry implementation
             """
-            url_webhook = f"{config.service_url}/{webhook.url}?id_shop={webhook.id_shop}&version=multi&event=stock_update"
-            self.create_webhook_record(product_id=None, company_id=company_id, webhook_body=webhook_body, url=url_webhook)
+            url_webhook = f"{config.service_url}/{webhook.url}?id_shop={webhook.id_shop}&version=multi&event={type_webhook}_update"
+            wh_record = self.create_webhook_record(product_id=product_id, company_id=company_id, webhook_body=webhook_body, url=url_webhook)
+            if wh_record and auto_send:
+                wh_record.send_webhook()
 
 
-    @api.model
-    def prepare_webhook_price(self, product, company_id, new_price):
-        """
-        TODO: register webhook failures in order to implement "retries"
-        :param env:
-        :type env: Environment
-        :param product_id:
-        :type product_id: int
-        :param hook_id:
-        :type hook_id: int
-        :return:
-        """
-        logger.debug('### SEND PRICE WEBHOOK ###')
-        product_id = product.id
-        logger.debug("Producto: {}".format(product_id))
-        logger.debug("Company: {}".format(company_id))
-        config = self.env['madkting.config'].get_config(company_id)
+    # @api.model
+    # def prepare_webhook_price(self, product, company_id, new_price):
+    #     """
+    #     TODO: register webhook failures in order to implement "retries"
+    #     :param env:
+    #     :type env: Environment
+    #     :param product_id:
+    #     :type product_id: int
+    #     :param hook_id:
+    #     :type hook_id: int
+    #     :return:
+    #     """
+    #     logger.debug('### SEND PRICE WEBHOOK ###')
+    #     product_id = product.id
+    #     logger.debug("Producto: {}".format(product_id))
+    #     logger.debug("Company: {}".format(company_id))
+    #     config = self.env['madkting.config'].get_config(company_id)
 
-        last_update = self.search([("product_id", "=", product_id), ("event", "=", "price_update"), ("state", "=", "done")])
-        if last_update and config.validate_price_webhook_enabled:
-            wh_data = json.loads(last_update.data)
-            logger.info(wh_data)
-            last_price = wh_data.get("price")
-            last_price = float(last_price) if last_price else 0
-            logger.info(last_price)
-            if last_price == new_price:
-                logger.info("return")
-                return
+    #     last_update = self.search([("product_id", "=", product_id), ("event", "=", "price_update"), ("state", "=", "done")])
+    #     if last_update and config.validate_price_webhook_enabled:
+    #         wh_data = json.loads(last_update.data)
+    #         logger.info(wh_data)
+    #         last_price = wh_data.get("price")
+    #         last_price = float(last_price) if last_price else 0
+    #         logger.info(last_price)
+    #         if last_price == new_price:
+    #             logger.info("return")
+    #             return
 
         
 
-        domain = [
-            ('hook_type', '=', 'price'),
-            ('active', '=', True),
-            ('company_id', '=', company_id)
-        ]
+    #     domain = [
+    #         ('hook_type', '=', 'price'),
+    #         ('active', '=', True),
+    #         ('company_id', '=', company_id)
+    #     ]
 
-        webhook_suscriptions = self.env['madkting.webhook'].search(domain)
+    #     webhook_suscriptions = self.env['madkting.webhook'].search(domain)
 
-        webhook_body = {
-            'product_id': product.id,
-            'company_id': company_id,
-            'default_code': product.default_code,
-            'event': 'price_update',
-            'price': new_price
-        }
+    #     webhook_body = {
+    #         'product_id': product.id,
+    #         'company_id': company_id,
+    #         'default_code': product.default_code,
+    #         'event': 'price_update',
+    #         'price': new_price
+    #     }
 
-        for webhook in webhook_suscriptions:
-            """
-            TODO: if the webhook fails store it into a database for retry implementation
-            """
-            url_webhook = "{}/{}?id_shop={}".format(config.service_url, webhook.url, webhook.id_shop)
-            wh_record = self.create_webhook_record(product.id, company_id, webhook_body, url_webhook, event="price_update")
-            if wh_record.id and config.webhook_price_enabled:
-                wh_record.send_webhook()
+    #     for webhook in webhook_suscriptions:
+    #         """
+    #         TODO: if the webhook fails store it into a database for retry implementation
+    #         """
+    #         url_webhook = "{}/{}?id_shop={}".format(config.service_url, webhook.url, webhook.id_shop)
+    #         wh_record = self.create_webhook_record(product.id, company_id, webhook_body, url_webhook, event="price_update")
+    #         if wh_record.id and config.webhook_price_enabled:
+    #             wh_record.send_webhook()
     
     @api.model
     def create_webhook_record(self, product_id, company_id, webhook_body, url, event='stock_update'):
@@ -448,8 +485,8 @@ class WebhookRecords(models.Model):
                 ("product_id", "=", product_id),
                 ("company_id", "=", company_id),
                 ("event", "=", event),
-                ("url", "=", url),
-                ("state", "=", 'done'),
+                # ("url", "=", url),
+                # ("state", "=", 'done'),
             ]
 
             wh_record = self.search(domain, order="date_webhook desc")
@@ -489,21 +526,21 @@ class WebhookRecords(models.Model):
         for rec in self:
             # data = json.loads(rec.data)
             try:
+                rec.date_send_webhook = datetime.now()
                 response = requests.post(rec.url, data=rec.data, headers=headers)
             except Exception as ex:
                 logger.exception(ex)
                 rec.state = "error"
-                rec.date_webhook = datetime.now()
+                rec.date_response_webhook = datetime.now()
                 rec.message = f"Error sending webhook: {ex}"
                 return False
             else:
+                rec.date_response_webhook = datetime.now()
                 if not response.ok:
                     logger.error(response.text)
                     rec.state = "error"
-                    rec.date_webhook = datetime.now()
                     rec.message = f"Error on response webhook: {response.text}"
                     return False
                 rec.state = "done"
-                rec.date_webhook = datetime.now()
                 rec.message = response.text
                 return True

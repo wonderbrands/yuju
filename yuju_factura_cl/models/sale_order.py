@@ -55,6 +55,8 @@ class SaleOrder(models.Model):
                                         description='order {} invoice folio not found'.format(order_id))
 
             invoice_separator = config.invoice_separator
+            if not invoice_separator:
+                invoice_separator = ' '
             logger.info(f"Separador serie y folio {invoice_separator}")
             last_folio = invoice_folio.split(invoice_separator)
             logger.info(last_folio)

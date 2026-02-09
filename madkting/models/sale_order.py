@@ -9,7 +9,7 @@ import requests
 
 from odoo import models, fields, api
 from odoo import exceptions
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from ..log.logger import logger
 from ..responses import results
 
@@ -18,7 +18,7 @@ class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
     channel = fields.Char('Marketplace')
-    channel_id = fields.Integer('Channel Id', tracking=1)
+    channel_id = fields.Integer('Channel Id', tracking=1, index=True)
     yuju_shop_id = fields.Integer('Yuju Shop Id')
     
     yuju_pack_id = fields.Char('Yuju Pack Id', tracking=1)
@@ -27,6 +27,7 @@ class SaleOrder(models.Model):
     yuju_marketplace_fee = fields.Float("Marketplace Fee")
     yuju_seller_shipping_cost = fields.Float("Seller Shipping Cost")
     yuju_carrier_tracking_ref = fields.Char("Numero de Guia")
+    yuju_create_date_order = fields.Char("Fecha Creacion Yuju")
     yuju_update_date_order = fields.Char("Fecha Actualizacion Yuju")
     yuju_payment_date_order = fields.Char("Fecha Acreditacion Pago")
 
@@ -37,7 +38,7 @@ class SaleOrder(models.Model):
         ('fbc', 'Full'),
         ], string="Fulfillment", tracking=1)
     channel_order_reference = fields.Char('Marketplace Reference', tracking=1)
-    channel_order_id = fields.Char('Marketplace Id', tracking=1)
+    channel_order_id = fields.Char('Marketplace Id', tracking=1, index=True)
     channel_order_market_fee = fields.Float('Channel Marketplace Fee')
     channel_order_shipping_cost = fields.Float('Shipping Cost')
     yuju_url_label = fields.Text('Label URL')
@@ -65,6 +66,19 @@ class SaleOrder(models.Model):
     ], string="Status Shipping Yuju", default="draft")
 
     yuju_invoice_doctype = fields.Char("Invoice Doctype ")
+    yuju_due_date = fields.Char("Fecha límite de despacho")
+    
+    yuju_invoice_retries = fields.Integer("Intentos de Facturación", default=0)
+    webhook_last_update = fields.Datetime("Fecha ultimo envio", default=fields.Datetime.now)
+
+    def init(self):
+        # Índice para búsquedas frecuentes por channel_id y channel_order_id
+        # self._cr.execute("DROP INDEX IF EXISTS idx_sale_channel_order_index;")
+        self._cr.execute("""
+            CREATE INDEX IF NOT EXISTS idx_sale_channel_order_index
+            ON sale_order (channel_id, channel_order_id)
+            WHERE channel_id IS NOT NULL AND channel_order_id IS NOT NULL;
+        """)
 
     def update_mapping_fields(self, order_data, model='sale.order', channel_id=None, ff_type=None, company_id=None):
         mappings = self.env['yuju.mapping.field']
@@ -78,13 +92,18 @@ class SaleOrder(models.Model):
     #     return defaults
 
 
-    def _search_order_exists(self, channel_id, order_id, ff_type, pack_id=None):
-                
+    def _search_order_exists(self, channel_id, order_id, ff_type, pack_id=None, config=None):
+        today = datetime.now()
+        order_search_days = 30
+        if config and config.order_search_days:
+            order_search_days = config.order_search_days
+        init_date = today - timedelta(days=order_search_days)
         domain = [
             ('channel_order_id', '=', order_id), 
             ('channel_id', '=', channel_id), 
             ("fulfillment", "=", ff_type),
-            ('state', 'not in', ['cancel'])
+            ('state', 'not in', ['cancel']),
+            ('date_order', '>=', init_date)
         ]
 
         if pack_id:
@@ -93,7 +112,7 @@ class SaleOrder(models.Model):
         logger.debug("#Search order domain")
         logger.debug(domain)
         
-        order_exists = self.search(domain)
+        order_exists = self.search(domain, limit=2)
 
         if order_exists.ids:
             return order_exists
@@ -109,7 +128,7 @@ class SaleOrder(models.Model):
         config = self.env['madkting.config'].get_config(self.company_id.id)
         if config and config.validate_order_duplicated_confirm and self.channel_id and self.channel_order_id:
             err_msg = "Override action_confirm yuju {}".format(self.name)
-            order_exists = self._search_order_exists(self.channel_id, self.channel_order_id, self.fulfillment, self.yuju_pack_id)
+            order_exists = self._search_order_exists(self.channel_id, self.channel_order_id, self.fulfillment, self.yuju_pack_id, config)
             if order_exists and len(order_exists.ids) == 1:
                 return super(SaleOrder, self).action_confirm()
             else:
@@ -221,7 +240,7 @@ class SaleOrder(models.Model):
         order_data['picking_policy'] = picking_policy
 
         if not order_data.get('date_order'):
-            order_data['date_order'] = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            order_data['date_order'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
         if not order_data.get('invoice_status'):
             order_data['invoice_status'] = 'to invoice'
@@ -272,7 +291,7 @@ class SaleOrder(models.Model):
         warehouse_id = order_data.get('warehouse_id')
 
         order_exists = self._search_order_exists(
-            channel_id, channel_order_id, fulfillment, yuju_pack_id)
+            channel_id, channel_order_id, fulfillment, yuju_pack_id, config)
         
         if order_exists and len(order_exists.ids) > 0:
             logger.debug("### ORDER EXISTS {} ###".format(order_data.get("channel_order_reference")))
@@ -353,6 +372,9 @@ class SaleOrder(models.Model):
 
             product = self.env['product.product'].search([('id', '=', int(line.get('product_id')))], limit=1)
 
+            if config.order_items_default_name and product and product.name:
+                line['name'] = product.name
+
             if config.orders_line_warehouse_enabled and warehouse_id:
                 line.update({'warehouse_id' : warehouse_id})
 
@@ -426,8 +448,8 @@ class SaleOrder(models.Model):
             err_msg = "{}: {}".format(err_msg, ex)
             logger.exception(err_msg)
             new_sale.message_post(body=err_msg)
-        else:
-            new_sale.add_order_message("shipping", new_sale.company_id.id)
+        # else:
+        #     new_sale.add_order_message("shipping", new_sale.company_id.id)
 
         data=new_sale.yuju_get_data()
         return results.success_result(data)
@@ -519,7 +541,7 @@ class SaleOrder(models.Model):
         location = order.warehouse_id.lot_stock_id
         for line in order.order_line:
             product = line.product_id
-            if product.detailed_type != 'product':
+            if not product.is_storable:
                 continue
             stock_product = self._has_stock(product, location)
             if not stock_product:
@@ -581,7 +603,8 @@ class SaleOrder(models.Model):
         updatable_attributes = ['note', 'partner_shipping_id', 'partner_invoice_id',
                                 'validity_date', 'order_progress', 'yuju_update_date_order',
                                 'yuju_payment_date_order', 'yuju_carrier_tracking_ref',
-                                'yuju_url_label', 'yuju_carrier'
+                                'yuju_url_label', 'yuju_carrier', 'yuju_due_date',
+                                'yuju_marketplace_fee', 'yuju_seller_shipping_cost'
                                 ]
 
         updates = {attribute: value for attribute, value in order_data.items() if attribute in updatable_attributes}
@@ -609,6 +632,7 @@ class SaleOrder(models.Model):
 
         try:
             order.write(updates)
+            order.message_post(body="Update order {}".format(updates))
         except Exception as ex:
             return results.error_result(code='sale_update_error',
                                         description=str(ex))
@@ -1049,10 +1073,53 @@ class SaleOrder(models.Model):
             invoice_data['name'] = invoice.name
             invoice_data['state'] = invoice.state
 
-            if config.auto_webhook_after_invoice_enabled:
-                order.add_order_message("invoice", company_id)
+            # if config.auto_webhook_after_invoice_enabled:
+            #     order.add_order_message("invoice", company_id)
 
             return results.success_result(data=invoice_data)
+        
+    # def process_invoice_webhooks(self):
+    #     """
+    #     Process invoice webhooks
+    #     :return:
+    #     """
+    #     logger.info("Processing invoice webhooks")
+    #     configs = self.env['madkting.config'].search([('invoice_auto_retry', '=', True)])
+    #     today = datetime.now() - timedelta(days=1)
+    #     if configs:
+    #         for config in configs:
+    #             date_ini = datetime.now().strftime('%Y-%m-%d 00:00:01')
+    #             company_id = config.company_id.id
+    #             invoice_max_retries = config.invoice_max_retries
+    #             invoice_max_records = config.invoice_max_records
+    #             before_days = config.invoice_before_days
+    #             before_date = today - timedelta(days=before_days)
+    #             domain = [
+    #                 ('company_id', '=', company_id), 
+    #                 ('yuju_invoice_status', '!=', 'done'), 
+    #                 ('yuju_invoice_retries', '<=', invoice_max_retries),
+    #                 ('webhook_last_update', '<', date_ini),
+    #                 ('invoice_ids', '!=', False),
+    #                 ('date_order', '>=', before_date),
+    #             ]
+    #             logger.info(f"Processing config {company_id}, domain: {domain}")
+    #             orders = self.search(domain, order="webhook_last_update asc", limit=invoice_max_records)
+
+    #             if not orders:
+    #                 logger.info(f"No pending invoices webhooks, company: {company_id}")
+    #                 continue
+
+    #             logger.info(f"Found {len(orders)} orders to process")
+    #             for order in orders:
+    #                 logger.info(f"Processing order {order.id}")
+    #                 try:
+    #                     order.yuju_invoice_retries = order.yuju_invoice_retries + 1
+    #                     order.webhook_last_update = fields.Datetime.now()
+    #                     order.message_post(body=f"Processing invoice retry for order, attempt: {order.yuju_invoice_retries}")
+    #                     order.add_order_message("invoice", company_id, force=True, config=config)
+    #                 except Exception as e:
+    #                     logger.error(f"Error processing invoice webhook for order {order.id}: {e}")
+
 
     def test_send_invoice_xml(self):
         logger.info("TESTING SEND XML")
@@ -1072,76 +1139,87 @@ class SaleOrder(models.Model):
         for rec in self:
             self.print_invoice(rec.id)
 
-    def validate_action_message(self, action):
+    # def validate_action_message(self, action):
         
-        config = self.env['madkting.config'].get_config(self.company_id.id)
+    #     config = self.env['madkting.config'].get_config(self.company_id.id)
         
-        if action == 'shipping' and not config.shipping_webhook_enabled:
-            return False
+    #     if action == 'shipping' and not config.shipping_webhook_enabled:
+    #         return False
 
-        elif action == 'invoice' and not config.invoice_webhook_enabled:
-            return False
+    #     elif action == 'invoice' and not config.invoice_webhook_enabled:
+    #         return False
 
-        return True
+    #     return True
     
-    @api.model
-    def retry_invoices(self, order_id=None, fecha_ini=None, fecha_fin=None):
-        domain = []
-        if order_id:
-            order_id = int(order_id)
-            domain = [("id", "=", order_id)]
-        else:
-            domain = [("channel_order_id", "!=", False),
-                      ("yuju_invoice_status", "=", "draft"),
-                      ("invoice_status", "=", "invoiced")]
-            if fecha_ini and fecha_fin:
-                domain.append(("date_order", ">=", fecha_ini))
-                domain.append(("date_order", "<=", fecha_fin))
-            elif fecha_ini:
-                domain.append(("date_order", "=", fecha_ini))
-        if domain:
-            logger.info("### DOMAIN ###")
-            logger.info(domain)
-            order_ids = self.search(domain, order="id")
-            logger.info(order_ids)
-            for order in order_ids:
-                order.add_order_message("invoice", order.company_id.id)
-        return True
+    # @api.model
+    # def retry_invoices(self, order_id=None, fecha_ini=None, fecha_fin=None):
+    #     domain = []
+    #     if order_id:
+    #         order_id = int(order_id)
+    #         domain = [("id", "=", order_id)]
+    #     else:
+    #         domain = [("channel_order_id", "!=", False),
+    #                   ("yuju_invoice_status", "=", "draft"),
+    #                   ("invoice_status", "=", "invoiced")]
+    #         if fecha_ini and fecha_fin:
+    #             domain.append(("date_order", ">=", fecha_ini))
+    #             domain.append(("date_order", "<=", fecha_fin))
+    #         elif fecha_ini:
+    #             domain.append(("date_order", "=", fecha_ini))
+    #     if domain:
+    #         logger.info("### DOMAIN ###")
+    #         logger.info(domain)
+    #         order_ids = self.search(domain, order="id")
+    #         logger.info(order_ids)
+    #         for order in order_ids:
+    #             order.add_order_message("invoice", order.company_id.id)
+    #     return True
 
-    def add_order_message(self, action="shipping", company_id=None):
+    def add_order_message(self, action="shipping", company_id=None, config=None):
+        """
+        Function called from the order's form to send invoice or shipping
+        
+        :param self: Description
+        :param action: Description
+        :param company_id: Description
+        :param force: Description
+        :param config: Description
+        """
 
         logger.info(f"PREPARING MESSAGE {action}")
 
-        config = self.env['madkting.config'].get_config(company_id)
+        if not config:
+            config = self.env['madkting.config'].get_config(company_id)
 
         if not config:
+            logger.error("No config found for this company")
             return
 
-        if action == "invoice":
-            if not config.invoice_webhook_enabled:
-                err_msg = "Webhook invoice is not enabled"
-                logger.error(err_msg)
-                self.message_post(body=err_msg)
-                return
+        # if action == "invoice":
+        #     if not config.invoice_webhook_enabled:
+        #         err_msg = "Webhook invoice is not enabled"
+        #         logger.debug(err_msg)
+        #         self.message_post(body=err_msg)
+        #         return
 
-            if self.yuju_invoice_status != "draft":
-                err_msg = "Trying to retry completed invoice, update invoice status to process"
-                logger.error(err_msg)
-                self.message_post(body=err_msg)
-                return
+        #     if self.yuju_invoice_status != "draft" and not force:
+        #         err_msg = "Trying to retry completed invoice, update invoice status to process"
+        #         logger.debug(err_msg)
+        #         self.message_post(body=err_msg)
+        #         return
 
-        if action == "shipping":
-            if not config.shipping_webhook_enabled:
-                err_msg = "Webhook shipping is not enabled"
-                logger.error(err_msg)
-                self.message_post(body=err_msg)
-                return
+        # if action == "shipping":
+        #     if not config.shipping_webhook_enabled:
+        #         err_msg = "Webhook shipping is not enabled"
+        #         logger.debug(err_msg)
+        #         self.message_post(body=err_msg)
+        #         return
 
-            if self.yuju_shipping_status != "draft":
-                err_msg = "Trying to retry completed shipping, update shipping status to process"
-                logger.error(err_msg)
-                self.message_post(body=err_msg)
-                return
+        #     if self.yuju_shipping_status != "draft" and not force:
+        #         err_msg = "Trying to retry completed shipping, update shipping status to process"
+        #         logger.debug(err_msg)
+        #         self.message_post(body=err_msg)
+        #         return
 
         order_id = self.id
         id_shop = self.yuju_shop_id
@@ -1177,18 +1255,18 @@ class SaleOrder(models.Model):
             self.message_post(body=f"Se ha enviado webhook de accion {action}")
 
             order = self.browse(order_id)
-            if action == "invoice":
+            if action == "invoice" and order.yuju_invoice_status != "done":
                 order.yuju_invoice_status = "sent"
 
-            if action == "shipping":
+            if action == "shipping" and order.yuju_shipping_status != "done":
                 order.yuju_shipping_status = "sent"
     
         
-    def test_get_invoice_xml(self):
-        logger.info("TESTING GET XML")
-        for rec in self:
-            res = self.get_invoice_xml(rec.id)
-            logger.info(res)
+    # def test_get_invoice_xml(self):
+    #     logger.info("TESTING GET XML")
+    #     for rec in self:
+    #         res = self.get_invoice_xml(rec.id)
+    #         logger.info(res)
 
     def download_label(self):
         if self.id and self.yuju_url_label:
@@ -1497,25 +1575,16 @@ class SaleOrder(models.Model):
             serie_invoice = config.invoice_serie
             serie_ticket = config.invoice_serie_ticket            
 
-            if not serie_invoice and not serie_ticket:
-                logger.debug("Invoice serie not defined, using default: A")
-                serie = "A"
-                doc_type = config.invoice_doc_type
+            serie = "A"
+            doc_type = "ticket"
+            if order.yuju_invoice_doctype == "invoice":
+                doc_type = "invoice"
 
-            else:
-                logger.debug("Busca serie en factura")
-                logger.debug(invoice_name)
-                if serie_invoice and serie_invoice in invoice_name:
-                    serie = serie_invoice
-                    doc_type = "invoice"
-                
-                elif serie_ticket  and serie_ticket in invoice_name:
-                    serie = serie_ticket
-                    doc_type = "ticket"
-                
-                else:
-                    serie = "A"
-                    doc_type = config.invoice_doc_type
+            if doc_type == "invoice" and serie_invoice:
+                serie = serie_invoice
+            
+            elif doc_type == "ticket" and serie_ticket:
+                serie = serie_ticket
 
             logger.debug(serie)
             logger.debug(doc_type)
@@ -1620,12 +1689,16 @@ class SaleOrder(models.Model):
         payment_model = self.env['account.payment']
 
         if not payment_method_id:
-            payment_method = self.env['account.payment.method'] \
-                                 .search([('payment_type', '=', 'inbound'),
+            logger.info("Searching for default payment method")
+            domain = [('payment_type', '=', 'inbound'),
                                           '|', ('code', '=', 'manual'),
-                                               ('code', '=', 'electronic')])
-            if len(payment_method) >= 1:
-                payment_method_id = payment_method.sorted(lambda method: method.id)[0].id
+                                               ('code', '=', 'electronic')]
+            logger.info(domain)
+            payment_method = self.env['account.payment.method'] \
+                                 .search(domain, limit=1)
+            if payment_method:
+                payment_method_id = payment_method.id
+                logger.info(f"Using payment method id {payment_method_id}")
             else:
                 return results.error_result(
                     code='not_payment_method',
@@ -1639,14 +1712,14 @@ class SaleOrder(models.Model):
                 journal = self.env['account.journal'] \
                             .search([('company_id', '=', sale.company_id.id),
                                     ('active', '=', True),
-                                    ('type', '=', 'bank')])
+                                    ('type', '=', 'bank')], limit=1)
             else:
                 journal = self.env['account.journal'] \
                             .search([('company_id', '=', invoice.company_id.id),
                                     ('active', '=', True),
-                                    ('type', '=', 'bank')])
-            if len(journal) >= 1:
-                journal_id = journal.sorted(lambda j: j.id)[0].id
+                                    ('type', '=', 'bank')], limit=1)
+            if journal:
+                journal_id = journal.id
             else:
                 return results.error_result(
                     code='not_account_journal',
@@ -1654,6 +1727,19 @@ class SaleOrder(models.Model):
                                 'must have one account_journal active in your '
                                 'company of type bank'
                 )
+            
+        domain = [('journal_id', '=', int(journal_id))]
+        payment_method_line = self.env['account.payment.method.line'].search(domain, limit=1)
+        logger.info(payment_method_line)
+
+        if not payment_method_line:
+            logger.error(f"No payment method line found for journal_id {journal_id}")
+            return results.error_result(
+                code='not_payment_method_line',
+                description='No payment method line found for the given '
+                            'journal_id {}'.format(journal_id)
+            )
+
         try:
 
             if sale:
@@ -1663,6 +1749,7 @@ class SaleOrder(models.Model):
                                                 'date': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
                                                 'payment_type': 'inbound',
                                                 'payment_method_id': payment_method_id,
+                                                'payment_method_line_id': payment_method_line.id,
                                                 'journal_id': journal_id,
                                                 'currency_id': sale.pricelist_id and sale.pricelist_id.currency_id.id,
                                                 'partner_type': 'customer'})                
@@ -1673,6 +1760,7 @@ class SaleOrder(models.Model):
                                                 'date': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
                                                 'payment_type': 'inbound',
                                                 'payment_method_id': payment_method_id,
+                                                'payment_method_line_id': payment_method_line.id,
                                                 'journal_id': journal_id,
                                                 'currency_id': invoice.currency_id.id,
                                                 'partner_type': 'customer'})

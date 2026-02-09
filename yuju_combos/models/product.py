@@ -100,41 +100,92 @@ class ProductProduct(models.Model):
         if res['success']:
             product = self.browse(product_id)
             route_id = config.mrp_route.id
-            if is_combo and config:
+            if is_combo:
                 logger.debug("## Es combo")
-                if product.yuju_kit and config and config.delete_old_bom:
-                    logger.debug("## Tiene Ldm")
-                    try:
-                        logger.debug("## Elimina Ldm anterior")
-                        product.yuju_kit.unlink()
-                    except Exception as e:
-                        logger.error(e)
-                        return results.error_result(code='bom_delete',
-                                                        description='Ocurrio un error al eliminar la ldm')                                        
-                try:
-                    logger.debug("## Crear nueva Ldm")
-                    new_bom = self.add_combo(product, kit_components)
+                new_bom = None
+
+                try:                    
+                    if product.bom_ids:
+                        if product.bom_count > 1:
+                            logger.debug("Mas de 1 LDM, se crea 1 nueva")
+                            new_bom = self.add_combo(product, kit_components)
+                            # archivar ldm antiguas
+                            if new_bom.id:
+                                logger.debug("Created ID: {}".format(new_bom.id))
+                                logger.debug("Se archivan otras LDM")
+                                old_bom_ids = product.bom_ids.filtered(lambda b: b.id != new_bom.id)
+                                logger.debug(old_bom_ids.ids)
+                                old_bom_ids.active = False
+                        elif product.bom_count == 1:
+                            logger.debug("Solo 1 LDM")
+                            logger.debug("## Revisa componentes Ldm para actualizar ##")
+                            materiales = {component[2]['product_id'] : component[2]['product_qty'] for component in kit_components}
+                            material_list = materiales.keys()
+
+                            is_updatable = False
+                            if len(material_list) != len(product.bom_ids.bom_line_ids.ids):
+                                logger.debug("La cantidad de productos no es la misma")
+                                is_updatable = True
+                            
+                            if not is_updatable:
+                                logger.debug("Misma cantidad de materiales")
+                                logger.debug("Se valida que los materiales sean los mismos")
+                                for bom in product.bom_ids:
+                                    for line in bom.bom_line_ids:
+                                        logger.debug("## Linea Ldm ##")
+                                        logger.debug(line.product_id.id)
+                                        logger.debug(line.product_qty)                                        
+                                        if line.product_id.id not in materiales:
+                                            is_updatable = True
+                                            logger.debug("Algunos materiales no existen en la lista actual")
+                                            break
+                                    if not is_updatable:
+                                        for line in bom.bom_line_ids:
+                                            logger.debug("Los materiales son los mismos, se validan ahora las cantidades")
+                                            if materiales[line.product_id.id] != line.product_qty:
+                                                msg = "Las cantidades han cambiado {} Qty: {} -> {}".format(
+                                                        line.product_id.name, 
+                                                        line.product_qty, 
+                                                        materiales[line.product_id.id]
+                                                    )
+                                                logger.debug(msg)
+                                                line.product_qty = materiales[line.product_id.id]
+                                                bom.message_post(body=msg)
+
+                            if is_updatable:
+                                logger.debug("Se crea nueva LDM")
+                                new_bom = self.add_combo(product, kit_components)
+                                if new_bom.id:
+                                    logger.debug("Created ID: {}".format(new_bom.id))
+                                    old_bom_ids = product.bom_ids.filtered(lambda b: b.id != new_bom.id)
+                                    logger.debug("Archiva otras LDM {}".format(old_bom_ids.ids))
+                                    old_bom_ids.active = False
+                            else:
+                                logger.debug("No es necesario crear nueva LDM")
+
+
+                    else:
+                        logger.debug("## No tiene Ldm ##")
+                        new_bom = self.add_combo(product, kit_components)
                 except Exception as e:
                     logger.error(e)
                     return results.error_result(code='bom_create',
                                                     description='Ocurrio un error al crear la ldm')
-                else:  
-                    logger.debug("## Actualiza tipo y Ldm en producto")              
-                    product.write({'yuju_kit' : new_bom.id, 'route_ids' : [(4, route_id)]})
+                else:
+                    if new_bom and new_bom.id:
+                        product.write({'yuju_kit' : new_bom.id, 'route_ids' : [(4, route_id)]})
+
             else:
                 logger.debug("## No es combo")
                 if product.yuju_kit and config.delete_old_bom:
                     logger.debug("## Tiene Ldm")
                     try:
                         logger.debug("## Elimina Ldm anterior")
-                        product.yuju_kit.unlink()
+                        product.bom_ids.active = False
                     except Exception as e:
                         logger.error(e)
                         return results.error_result(code='bom_delete',
                                                         description='Ocurrio un error al eliminar la ldm')
-                    
-                # logger.debug("## Actualiza tipo y Ldm en producto")
-                # product.write({'type': 'product', 'route_ids' : [(3, route_id)]})
 
         return res
 

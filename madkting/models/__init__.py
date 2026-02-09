@@ -15,3 +15,4 @@ from . import mapping_fields
 from . import mapping_states
 from . import stock_warehouse
 from . import stock_picking
+from . import pricelist

@@ -13,7 +13,7 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '0.0.3',
+    'version': '0.0.4',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
@@ -46,3 +46,7 @@
         "views/**/*",  # exclude all files in a folder hierarchy recursively
     ]
 }
+
+# Version 0.0.4
+# *** Actualiza proceso de crear LDM, valida si no ha cambiado antes de modificarla y/o crear una nueva
+

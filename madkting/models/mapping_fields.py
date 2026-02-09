@@ -26,6 +26,7 @@ class YujuMappingField(models.Model):
     model_relation = fields.Many2one('yuju.mapping.model', 'Modelo Relacion')
     field_values = fields.One2many('yuju.mapping.field.value', 'field_id', 'Valores campos')
     company_id = fields.Many2one('res.company', 'Company')
+    remove_after_process = fields.Boolean("Quitar campo despues del mapeo", help="Quita el campo de los datos que se envian despues de que son procesados.", default=True)
     mapping_type = fields.Selection([
         ("fields", "Mapeo de campos"),
         ("defaults", "Valores por Default"),
@@ -57,6 +58,7 @@ class YujuMappingField(models.Model):
             default_value = mapping.default_value 
             tipo_campo = mapping.fieldtype
             model_rel = mapping.model_relation
+            remove_after = mapping.remove_after_process
 
             logger.debug(f"Yuju Field: {yuju_field}")
             logger.debug(f"Tipo Mapeo: {tipo_mapeo}")
@@ -76,7 +78,7 @@ class YujuMappingField(models.Model):
 
                 yuju_value = record_data.get(yuju_field)
                 logger.debug(f"Yuju Value: {yuju_value}")
-                if yuju_field not in processed_fields:
+                if yuju_field not in processed_fields and remove_after:
                     processed_fields.append(yuju_field)
                 
                 if not yuju_value:

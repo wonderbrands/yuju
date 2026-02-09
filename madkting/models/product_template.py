@@ -10,6 +10,8 @@ from collections import defaultdict
 from ..log.logger import logger
 from ..responses import results
 import psycopg2
+import logging as _logger
+_logger = _logger.getLogger(__name__)
 
 
 class ProductTemplate(models.Model):
@@ -138,7 +140,8 @@ class ProductTemplate(models.Model):
 
         # create a product simple
         if not has_variations:
-            logger.debug("#CREATE PRODUCT SIMPLE")
+            logger.info("#CREATE PRODUCT SIMPLE")
+            logger.info(product_data)
             
             try:
                 new_product_simple = self.env['product.product'].create(product_data)
@@ -157,15 +160,21 @@ class ProductTemplate(models.Model):
         # validate variations
         product_template_attribute_lines = []
 
+        logger.info("#CREATE PRODUCT WITH VARIATIONS")
+        logger.info(variation_attributes)
+
         for attribute_name, values in variation_attributes.items():
             attribute_line = dict()
-            attribute = self.env['product.attribute'].search([('name', '=', attribute_name)], limit=1)
+            _logger.info("Processing attribute: {} with values: {}".format(attribute_name, values))
+            attribute = self.env['product.attribute'].search([('name', '=', attribute_name)], limit=1)            
             if not attribute:
                 try:
                     # create attribute
+                    _logger.info("Attribute {} not found, creating...".format(attribute_name))
                     attribute = self.env['product.attribute'].create({'name': attribute_name,
                                                                       'create_variant': 'always'})
                     # create new attribute values
+                    _logger.info("Creating attribute values {} for attribute {}".format(values, attribute_name))
                     self.env['product.attribute.value'].create(
                         [{'name': val, 'attribute_id': attribute.id} for val in values]
                     )
@@ -174,8 +183,12 @@ class ProductTemplate(models.Model):
                     return results.error_result(code='create_variation_attribute_error',
                                                 description='Product couldn\'t be created because '
                                                             'of the following exception: {}'.format(ex))
+                else:
+                    _logger.info("Attribute {} and its values created.".format(attribute_name))
             else:
+                _logger.info("Attribute {} found.".format(attribute_name))
                 current_attribute_values = {val.name: val.id for val in attribute.value_ids}
+                _logger.info("Current attribute values: {}".format(current_attribute_values))
                 _has_new_values_created = False
                 for value in values:
                     if value not in current_attribute_values:
@@ -194,13 +207,23 @@ class ProductTemplate(models.Model):
                     # if new values has been created for this attribute
                     # invalidate the cache in order to get value_ids updated
                     # attribute.invalidate_cache()
+
+            attribute = self.env['product.attribute'].browse(attribute.id)
+            attribute_value_ids = []
+            attribute_values_updated = {val.name: val.id for val in attribute.value_ids}
+            for value in values:
+                if value in attribute_values_updated:
+                    attribute_value_ids.append(attribute_values_updated[value])
+            _logger.info("Final attribute values: {}".format(attribute_value_ids))
             
             attribute_line = {
                 'attribute_id': attribute.id,
                 'value_ids': [
-                    (4, val.id) for val in attribute.value_ids if val.name in values
+                    (4, val_id) for val_id in attribute_value_ids
+                    # (4, val.id) for val in attribute.value_ids if val.name in values
                 ]
             }
+            _logger.info("Appending attribute line: {}".format(attribute_line))
             product_template_attribute_lines.append((0, 0, attribute_line))
 
         product_data['attribute_line_ids'] = product_template_attribute_lines
@@ -249,10 +272,10 @@ class ProductTemplate(models.Model):
                 if all(attrib in variations[v] and variations[v][attrib] == value for attrib, value in data.get('attributes').items() ):
                     variation_data = variations.pop(v)
                     break
-            logger.debug("## VARIATION DATA ##")
-            logger.debug(variation_data)
+            # logger.debug("## VARIATION DATA ##")
+            # logger.debug(variation_data)
             if variation_data:
-                logger.debug("Entra..")
+                # logger.debug("Entra..")
 
                 if 'type' in variation_data and variation_data['type'] == 'product':
                     variation_data['type'] = 'consu'
@@ -273,8 +296,8 @@ class ProductTemplate(models.Model):
                 variation_data.pop('product_id', None)
                 variation_data.pop('id', None)
                 
-                logger.debug("## VARIATION DATA ##")
-                logger.debug(variation_data)
+                # logger.debug("## VARIATION DATA ##")
+                # logger.debug(variation_data)
                 product_variant.write(variation_data)
 
         return results.success_result(new_template.product_variant_id.get_data_with_variations())
@@ -378,3 +401,22 @@ class ProductTemplate(models.Model):
 
         logger.debug("Finaliza eliminacion")
         return results.success_result()
+
+    def write(self, values):
+        res = super(ProductTemplate, self).write(values)
+        # Check if we need to update price for products
+        need_update = False
+        config_ids = self.env['madkting.config'].search([])
+        for config in config_ids:
+            if config.webhook_price_enabled:
+                need_update = True
+                break
+        if not need_update:
+            # logger.debug("No need to update price for products.")
+            return res
+        for product in self:
+            if "list_price" in values:
+                products = self.env['product.product'].search([('product_tmpl_id', '=', product.id)])
+                for p in products:
+                    p.webhook_price_pending = True
+        return res

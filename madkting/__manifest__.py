@@ -16,7 +16,7 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '18.0.2.3.6',
+    'version': '18.0.2.6.7',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
@@ -57,6 +57,87 @@
         "views/**/*",  # exclude all files in a folder hierarchy recursively
     ]
 }
+
+# Version 2.6.7
+# Agrupar Webhooks
+
+# Version 2.6.6
+# Fix campo lst_price en webhook de producto, fix en pago de factura campo requerido.
+
+# Version 2.6.5
+# Agrega campos marketplace_fee y seller_shipping_cost en update
+
+# Version 2.6.4
+# Agrega campos fechas
+
+# Version 2.6.3
+# BUG Fix creacion de atributos en producto
+
+# Version 2.6.2
+# Agrega opcion para quitar campo despues del mapeo
+
+# Version 2.6.1
+# Fix doctype serie invoice
+
+# Version 2.6.0
+# Fix yuju_due_date field
+
+# Version 2.5.9
+# Fix agregar direccion customer sin company_id
+
+# Version 2.5.8
+# Fix tipo de producto en actualizacion general de stock.
+
+# Version 2.5.7
+# Agrega opcion para buscar stock en campos calculados, oculta opcion de ubicaciones hijas
+# TODO: se va a agregar funcion para agreupar stock de ubicaciones hijas en ubicacion padre
+
+# Version 2.5.6
+# Agrega opcion para actualizar nombre del cliente con direccion de factura
+
+# Version 2.5.5
+# Agrega opcion para buscar stock en ubicaciones hijas
+
+# Version 2.5.4
+# Fix webhook simple
+
+# Version 2.5.3
+# Fix metodo busqueda partners active.
+
+# Version 2.5.2
+# Actualiza metodo sen webhook_all para enviar webhook de los productos.
+
+# Version 2.5.1
+# Agrega configuracion de envio de webhooks stock por CRON, si no se activa, 
+# se envia al momento de crear o actualizar el stock
+
+# Version 2.5.0
+# Agrega optimizacion de consultas pedidos y productos, agrega indices a campos usados en busquedas frecuentes
+
+# Version 2.4.4
+# Optimiza busqueda de pedidos existentes, ahora se puede configurar los dias a buscar desde la configuracion del modulo
+# Fix no se actualiza webhook_price_pending en pricelist item y product template si no se activa en la config
+
+# Version 2.4.3
+# Actualiza CRON para reintentar envio de facturas,
+
+# Version 2.4.2
+# Agrega CRON para reintentar envio de facturas
+
+# Version 2.4.1
+# Fix name function in webhook record
+
+# Version 2.4.0
+# Actualiza permisos por defecto de los grupos de seguridad
+
+# Version 2.3.9
+# Actualiza metodo webhook price desde product template y pricelist con una tarea programada cada 10 minutos
+
+# Version 2.3.8
+# Actualiza metodo webhook price product not mapped
+
+# Version 2.3.7
+# Agrega yuju_due_date como campo actualizable
 
 # Version 2.3.6
 # Quita referencia a configuracion que no existe

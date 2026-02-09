@@ -34,33 +34,36 @@
               <group>
                 <group>
                   <field name="webhook_stock_enabled"/>
-                  <field name="webhook_product_mapped" />
+                  <field name="webhook_auto_send_enabled"/>
+                  <!-- <field name="webhook_product_mapped" /> -->
+                  <!-- <field name="webhook_stock_cron_enabled"/> -->
+                  <field name="webhook_product_batchsize"/>
+                  <!-- <field name="webhook_product_limit"/> -->
                   <field name="stock_source_multi"/>
                   <field name="stock_source_channels"/>
-                  <field name="stock_quant_available_quantity_enabled"/>
+                  <!-- <field name="stock_locations_children"/> -->
+                  <field name="simple_stock_locations"/>
+                  <!-- <field name="stock_quant_available_quantity_enabled"/> -->
                   <field name="webhook_price_enabled"/>
-                  <field name="webhook_product_batchsize"/>
-                  <field name="validate_price_webhook_enabled"/>
+                  <!-- <field name="validate_price_webhook_enabled"/> -->
                   <field name="default_pricelist"/>
-                  <field name="log_enabled"/>
-                  <field name="order_detail_enabled"/>
-                  <field name="webhook_detail_enabled"/>
+                  <!-- <field name="order_detail_enabled"/> -->
+                  <!-- <field name="log_enabled"/> -->
+                  <!-- <field name="webhook_detail_enabled"/> -->
                 </group>
-                <group>
-                  <field name="validate_partner_exists"/>
-                  <field name="validate_barcode_exists"/>
-                  <field name="simple_description_enabled"/>
+                <group>                  
                   <field name="product_shared_catalog_enabled" />
-                  <field name="search_state_by_mapping" />
-                  <field name="search_city_by_mapping" />
+                  <!-- <field name="search_state_by_mapping" />
+                  <field name="search_city_by_mapping" /> -->
                 </group>
               </group>
             </page>
             <page string="Ventas">
               <group>
-                <group>                  
-                  <field name="validate_pack_id_enabled"/>
-                  <field name="validate_order_duplicated_confirm"/>
+                <group>
+                  <!-- <field name="validate_pack_id_enabled"/> -->
+                  <!-- <field name="validate_order_duplicated_confirm"/> -->
+                  <field name="order_items_default_name"/>
                   <field name="orders_unconfirmed"/>
                   <field name="orders_unconfirmed_by_stock"/>
                   <field name="orders_unconfirmed_stock_src"/>
@@ -70,14 +73,19 @@
                   <field name="required_invoice_address_fields"/>
                 </group>
                 <group>
-                  <field name="shipping_webhook_enabled"/>
+                  <field name="validate_partner_exists"/>
+                  <!-- <field name="partner_name_invoice_address"/> -->
+                  <!-- <field name="validate_barcode_exists"/> -->                  
+                  <field name="simple_description_enabled"/>
+                  <!-- <field name="shipping_webhook_enabled"/> -->
                   <field name="invoice_doctype_enabled"/>
+                  <field name="order_search_days"/>
                   <field name="update_order_name"/>
                   <field name="update_order_name_pack"/>
                   <field name="orders_force_cancel"/>
                   <field name="orders_cancel_related_documents"/>
                   <field name="orders_line_warehouse_enabled"/>
-                  <field name="order_remove_tax_default"/>
+                  <!-- <field name="order_remove_tax_default"/> -->
                 </group>
               </group>
             </page>
@@ -86,8 +94,12 @@
                 <group>
                   <field name="invoice_unconfirmed"/>
                   <field name="invoice_webhook_enabled"/>
-                  <field name="auto_webhook_after_invoice_enabled"/>
-                  <field name="invoice_prefix_id_folio"/>
+                  <!-- <field name="auto_webhook_after_invoice_enabled"/> -->
+                  <!-- <field name="invoice_auto_retry"/> -->
+                  <!-- <field name="invoice_max_retries"/> -->
+                  <!-- <field name="invoice_before_days"/> -->
+                  <!-- <field name="invoice_max_records"/> -->
+                  <!-- <field name="invoice_prefix_id_folio"/> -->
                   <field name="invoice_country" required="invoice_webhook_enabled == True" invisible="invoice_webhook_enabled == False" />
                   <field name="invoice_currency" required="invoice_webhook_enabled == True" invisible="invoice_webhook_enabled == False"/>
                   <field name="invoice_prefix_file" required="invoice_webhook_enabled == True" invisible="invoice_webhook_enabled == False"/>
@@ -106,7 +118,7 @@
                 </group>
               </group>
             </page>
-            <page string="Dropship">
+            <!-- <page string="Dropship">
               <group>
                 <group>                  
                   <field name="dropship_enabled"/>
@@ -120,7 +132,7 @@
                   
                 </group>
               </group>
-            </page>
+            </page> -->
           </notebook>
         </form>
       </field>
