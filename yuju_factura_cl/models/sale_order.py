@@ -15,10 +15,7 @@ from ..responses import results
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
-    def _get_invoice_folio(self):
-        company_id = self.company_id.id
-        config = self.env['madkting.config'].get_config(self.company_id.id)
-        doc_id = config.cafs_document_type_id.id
+    def _get_invoice_folio(self, company_id, doc_id):
         domain = [
             ("state", "=", "posted"),
             ("company_id", "=", company_id), 
@@ -44,9 +41,11 @@ class SaleOrder(models.Model):
         if config and config.validate_cafs and config.cafs_document_type_id:
             
             company_id = self.env.user.company_id.id
-            invoice_folio = self._get_invoice_folio()
             doc_id = config.cafs_document_type_id.id
+            if order.yuju_invoice_doctype == 'invoice' and config.cafs_document_type_invoice_id:
+                doc_id = config.cafs_document_type_invoice_id.id
 
+            invoice_folio = self._get_invoice_folio(company_id, doc_id)
             if not invoice_folio:
                 err_msg = "No se pudo obtener el ultimo folio de las facturas"
                 logger.error(err_msg)

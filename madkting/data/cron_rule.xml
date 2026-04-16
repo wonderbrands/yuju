@@ -1,5 +1,5 @@
 <odoo>
-    <data noupdate="0">
+    <data noupdate="1">
 
         <record id="yuju_process_scheduled_rule" model="ir.cron">
             <field name="name">Yuju Send Stock Webhooks</field>

@@ -8,6 +8,7 @@
                 <field name="invoice_partner_vat" position="after">
                     <field name="validate_cafs" />     
                     <field name="cafs_document_type_id" />             
+                    <field name="cafs_document_type_invoice_id" />             
                     <field name="validate_doctype_nit" />             
                     <field name="doctype_default" />             
                     <field name="vat_prefix" />             

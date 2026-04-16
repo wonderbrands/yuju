@@ -1887,40 +1887,43 @@ class SaleOrder(models.Model):
                 sale_order.message_post(body=post_message)
                 sale_order.write({"order_progress": "cancel"})
 
-                if sale_order.invoice_ids and config.orders_cancel_related_documents:               
-                    try:
-                        invoice = sale_order.invoice_ids[0]
-                        invoice.button_cancel()
-                        payment_ids = self.env["account.payment"].search([
-                            ("ref", "=", sale_order.name), 
-                            ("partner_id", "=", sale_order.partner_id.id),
-                            ("date", "=", invoice.invoice_date)
-                            ], limit=1)
-                        if payment_ids:
-                            logger.info("## CANCELA PAGO ##")
-                            logger.info(payment_ids)
-                            payment_ids.move_id.button_cancel()
-                    except Exception as ex:
-                        post_message = 'invoice couldn\'t be draft: {}'.format(ex)
-                        logger.debug(post_message)
-                        sale_order.message_post(body=post_message)
-                        warnings.append(post_message)
-                    else:
-                        post_message = 'Invoice draft'
-                        logger.debug(post_message)
-                        sale_order.message_post(body=post_message)
-
+                if sale_order.invoice_ids:
+                    post_message = 'Pedido tiene factura(s) relacionada(s), puede requerir NC'
+                    sale_order.message_post(body=post_message)
+                    if config.orders_cancel_related_documents:
                         try:
-                            sale_order.invoice_ids.button_cancel()
+                            invoice = sale_order.invoice_ids[0]
+                            invoice.button_cancel()
+                            payment_ids = self.env["account.payment"].search([
+                                ("ref", "=", sale_order.name), 
+                                ("partner_id", "=", sale_order.partner_id.id),
+                                ("date", "=", invoice.invoice_date)
+                                ], limit=1)
+                            if payment_ids:
+                                logger.info("## CANCELA PAGO ##")
+                                logger.info(payment_ids)
+                                payment_ids.move_id.button_cancel()
                         except Exception as ex:
-                            post_message = 'invoice couldn\'t be cancelled: {}'.format(ex)
+                            post_message = 'invoice couldn\'t be draft: {}'.format(ex)
                             logger.debug(post_message)
                             sale_order.message_post(body=post_message)
                             warnings.append(post_message)
                         else:
-                            post_message = 'Invoice Cancel'
+                            post_message = 'Invoice draft'
                             logger.debug(post_message)
                             sale_order.message_post(body=post_message)
+
+                            try:
+                                sale_order.invoice_ids.button_cancel()
+                            except Exception as ex:
+                                post_message = 'invoice couldn\'t be cancelled: {}'.format(ex)
+                                logger.debug(post_message)
+                                sale_order.message_post(body=post_message)
+                                warnings.append(post_message)
+                            else:
+                                post_message = 'Invoice Cancel'
+                                logger.debug(post_message)
+                                sale_order.message_post(body=post_message)
             else:
                 post_message = f'No se puede cancelar la orden {sale_order.name}, verifique si tiene transacciones realizadas'
                 logger.warning(post_message)

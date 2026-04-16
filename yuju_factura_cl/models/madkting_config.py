@@ -12,7 +12,8 @@ class MadktingConfig(models.Model):
     _description = 'Config'
 
     validate_cafs = fields.Boolean('Valida folios facturacion')
-    cafs_document_type_id = fields.Many2one('l10n_latam.document.type', 'Tipo de documento')
+    cafs_document_type_id = fields.Many2one('l10n_latam.document.type', 'Tipo de documento Boleta')
+    cafs_document_type_invoice_id = fields.Many2one('l10n_latam.document.type', 'Tipo de documento Factura')
     validate_doctype_nit = fields.Boolean("Valida tipo de identificacion NIT")
     doctype_default = fields.Char("Default Doc Type", help="Si se habilita la validacion de doc_type asigna este valor por defecto")
     vat_prefix = fields.Char("Prefijo VAT", help="Si se habilita, se agrega un prefijo al VAT recibido")
