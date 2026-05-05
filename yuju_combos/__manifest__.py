@@ -13,7 +13,7 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '0.0.4',
+    'version': '18.0.1.0.0',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
@@ -47,6 +47,5 @@
     ]
 }
 
-# Version 0.0.4
-# *** Actualiza proceso de crear LDM, valida si no ha cambiado antes de modificarla y/o crear una nueva
+# Version 0.1.0 - Fix combox elimina listas de materiales anteriores
 

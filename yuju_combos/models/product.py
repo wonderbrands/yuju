@@ -45,18 +45,12 @@ class ProductProduct(models.Model):
             if not product_kit_id:
                 return results.error_result(code='id_component_empty',
                                         description='El id del componente no se ha definido')
-
-            product_kit = self.search([('id_product_madkting', '=', product_kit_id)], limit=1)
+            
+            product_kit = self.search([('default_code', '=', product_kit_sku)], limit=1)
             if not product_kit.id:
-                if config and config.search_kit_by_sku:
-                    product_kit = self.search([('default_code', '=', product_kit_sku)], limit=1)
-                    if not product_kit.id:
-                        return results.error_result(code='component_not_mapped',
-                                        description='Alguno de los componentes por SKU no se ha mapeado')
-                else:
-                    return results.error_result(code='component_not_mapped',
-                                        description='Alguno de los componentes no se ha mapeado')
-
+                return results.error_result(code='component_not_mapped',
+                                description='Alguno de los componentes por SKU no se ha mapeado')
+            
             kit_components.append((0, 0, {
                 'product_id' : product_kit.id,
                 'product_qty' : product_kit_qty
@@ -98,75 +92,121 @@ class ProductProduct(models.Model):
         res = super(ProductProduct, self).update_product(product_data, product_type, id_shop)
 
         if res['success']:
+            logger.debug("## Update combo response ##")
+            logger.debug(product)
+            logger.debug(product_id)
             product = self.browse(product_id)
+            logger.debug(product)
             route_id = config.mrp_route.id
             if is_combo:
                 logger.debug("## Es combo")
                 new_bom = None
 
-                try:                    
-                    if product.bom_ids:
-                        if product.bom_count > 1:
-                            logger.debug("Mas de 1 LDM, se crea 1 nueva")
-                            new_bom = self.add_combo(product, kit_components)
-                            # archivar ldm antiguas
-                            if new_bom.id:
-                                logger.debug("Created ID: {}".format(new_bom.id))
-                                logger.debug("Se archivan otras LDM")
-                                old_bom_ids = product.bom_ids.filtered(lambda b: b.id != new_bom.id)
-                                logger.debug(old_bom_ids.ids)
-                                old_bom_ids.active = False
-                        elif product.bom_count == 1:
+                try: 
+                    rel_bom_ids = self.env["mrp.bom"].search([('product_id', '=', product_id)])
+                    if rel_bom_ids and rel_bom_ids.ids:
+                        logger.debug("## Tiene Ldm ##")
+                        logger.debug(rel_bom_ids.ids)
+                        logger.debug(len(rel_bom_ids.ids))
+                        total_boms = len(rel_bom_ids.ids)
+                        
+                        if total_boms > 1 and not product.yuju_kit:
+                            logger.debug("Mas de 1 LDM y no se indica cual es la de Yuju, no se actualiza")
+                            product.message_post(body="Se han detectado {} LDM. Por favor revise y archive las LDM que no correspondan.".format(total_boms))
+
+                            # new_bom = self.add_combo(product, kit_components)
+                            # if new_bom.id:
+                            #     logger.debug("Created ID: {}".format(new_bom.id))
+                            #     logger.debug("Se archivan otras LDM")
+                            #     old_bom_ids = product.bom_ids.filtered(lambda b: b.id != new_bom.id)
+                            #     logger.debug(old_bom_ids.ids)
+                            #     old_bom_ids.active = False
+                        
+                        elif total_boms == 1 or product.yuju_kit:
+                            related_bom_id = product.yuju_kit if product.yuju_kit else rel_bom_ids[0]
                             logger.debug("Solo 1 LDM")
+                            logger.debug("LDM a actualizar: {}".format(related_bom_id.id))
                             logger.debug("## Revisa componentes Ldm para actualizar ##")
                             materiales = {component[2]['product_id'] : component[2]['product_qty'] for component in kit_components}
-                            material_list = materiales.keys()
+                            material_product_ids = materiales.keys()
 
-                            is_updatable = False
-                            if len(material_list) != len(product.bom_ids.bom_line_ids.ids):
-                                logger.debug("La cantidad de productos no es la misma")
-                                is_updatable = True
+                            # is_updatable = False
+                            # if len(material_product_ids) != len(rel_bom_ids[0].bom_line_ids.ids):
+                            #     logger.debug("La cantidad de productos no es la misma")
+                            #     is_updatable = True
                             
-                            if not is_updatable:
-                                logger.debug("Misma cantidad de materiales")
-                                logger.debug("Se valida que los materiales sean los mismos")
-                                for bom in product.bom_ids:
-                                    for line in bom.bom_line_ids:
-                                        logger.debug("## Linea Ldm ##")
-                                        logger.debug(line.product_id.id)
-                                        logger.debug(line.product_qty)                                        
-                                        if line.product_id.id not in materiales:
-                                            is_updatable = True
-                                            logger.debug("Algunos materiales no existen en la lista actual")
-                                            break
-                                    if not is_updatable:
-                                        for line in bom.bom_line_ids:
-                                            logger.debug("Los materiales son los mismos, se validan ahora las cantidades")
-                                            if materiales[line.product_id.id] != line.product_qty:
-                                                msg = "Las cantidades han cambiado {} Qty: {} -> {}".format(
-                                                        line.product_id.name, 
-                                                        line.product_qty, 
-                                                        materiales[line.product_id.id]
-                                                    )
-                                                logger.debug(msg)
-                                                line.product_qty = materiales[line.product_id.id]
-                                                bom.message_post(body=msg)
+                            # if not is_updatable:
+                                # logger.debug("Misma cantidad de materiales")
+                            logger.debug("Se valida que los materiales sean los mismos")
+                            # for bom in rel_bom_ids:
+                            
+                            product_line_ids = []
+                            lines_to_remove = []
+                            for line in related_bom_id.bom_line_ids:
+                                logger.debug("## Linea Ldm ##")
+                                logger.debug(line.product_id.id)
+                                logger.debug(line.product_qty)
+                                product_line_id = line.product_id.id
+                                product_line_ids.append(product_line_id)
 
-                            if is_updatable:
-                                logger.debug("Se crea nueva LDM")
-                                new_bom = self.add_combo(product, kit_components)
-                                if new_bom.id:
-                                    logger.debug("Created ID: {}".format(new_bom.id))
-                                    old_bom_ids = product.bom_ids.filtered(lambda b: b.id != new_bom.id)
-                                    logger.debug("Archiva otras LDM {}".format(old_bom_ids.ids))
-                                    old_bom_ids.active = False
-                            else:
-                                logger.debug("No es necesario crear nueva LDM")
+                                if product_line_id not in materiales:
+                                    # is_updatable = True
+                                    # logger.debug("Algunos materiales no existen en la lista actual")
+                                    # break
+                                    lines_to_remove.append(line.id)
+                            
+                            products_to_append = []
+                            for material_id in material_product_ids:
+                                if material_id not in product_line_ids:
+                                    # is_updatable = True
+                                    # logger.debug("Algunos materiales nuevos no existen en la LDM actual")
+                                    # break
+                                    products_to_append.append(material_id)
+
+                            if products_to_append:
+                                logger.debug(f"Se agregan nuevos materiales a la LDM")
+                                for product_id in products_to_append:
+                                    product = self.env['product.product'].browse(product_id)
+                                    new_kit_component = (0, 0, {
+                                        'product_id' : product.id,
+                                        'product_qty' : materiales[product_id]
+                                        })
+                                    logger.debug(f"Nuevo componente: {new_kit_component}")
+                                    related_bom_id.bom_line_ids = [new_kit_component]
+                        
+                            if lines_to_remove:
+                                logger.debug(f"Se eliminan materiales de la LDM {lines_to_remove}")
+                                related_bom_id.bom_line_ids = [(2, line_id) for line_id in lines_to_remove]
+
+                            # if not is_updatable:
+                            for line in related_bom_id.bom_line_ids:
+                                logger.debug("Se validan ahora las cantidades de los materiales")
+                                if materiales[line.product_id.id] != line.product_qty:
+                                    msg = "Las cantidades han cambiado {} Qty: {} -> {}".format(
+                                            line.product_id.name, 
+                                            line.product_qty, 
+                                            materiales[line.product_id.id]
+                                        )
+                                    logger.debug(msg)
+                                    line.product_qty = materiales[line.product_id.id]
+                                    product.message_post(body=msg)
+
+                            # if is_updatable:
+                            #     logger.debug("Se crea nueva LDM")
+                            #     new_bom = self.add_combo(product, kit_components)
+                            #     if new_bom.id:
+                            #         logger.debug("Created ID: {}".format(new_bom.id))
+                            #         old_bom_ids = product.bom_ids.filtered(lambda b: b.id != new_bom.id)
+                            #         logger.debug("Archiva otras LDM {}".format(old_bom_ids.ids))
+                            #         old_bom_ids.active = False
+                            # else:
+                            #     logger.debug("No es necesario crear nueva LDM")
 
 
                     else:
                         logger.debug("## No tiene Ldm ##")
                         new_bom = self.add_combo(product, kit_components)
+                        logger.debug("Created ID: {}".format(new_bom.id))
                 except Exception as e:
                     logger.error(e)
                     return results.error_result(code='bom_create',
