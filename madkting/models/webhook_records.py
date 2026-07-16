@@ -19,11 +19,15 @@ class MadktingWebhook(models.Model):
 
     __allowed_hook_types = ['stock', 'price']
 
+    def _get_default_company_id(self):
+        company_id = self.env.user.company_id
+        return company_id.id
+
     hook_type = fields.Selection([('stock', 'Stock'), ('price', 'Price')], string='Webhook type', required=True, default='stock')
     url = fields.Char('Webhook endpoint', size=400, required=False, default="product_update")
     id_shop = fields.Char('Id Shop Yuju', required=True, default="0")
     active = fields.Boolean('Active', default=True, required=True)
-    company_id = fields.Many2one('res.company', string='Empresa', required=True)
+    company_id = fields.Many2one('res.company', string='Empresa', required=True, default=_get_default_company_id)
     message = fields.Text('Mensaje')
     updated_at = fields.Datetime(string="Updated at", readonly=True)
 
@@ -244,6 +248,58 @@ class MadktingWebhook(models.Model):
             rec.message = f"Total processed: {len(product_ids.ids)}"
             rec.updated_at = datetime.now()
             return
+        
+    def scheduled_send_webhook_all(self, company_id):
+        """
+        :return:
+        :rtype: dict
+        """
+        config = self.env['madkting.config'].get_config(company_id)
+        record = self.env['madkting.webhook'].search([('company_id', '=', company_id), ('hook_type', '=', 'stock')], limit=1)
+
+        if not record:
+            logger.info(f"No webhook record found for company {company_id}")
+            return False
+        
+        product_ids = self.env['product.product'].with_context(
+            prefetch_fields=[
+                'default_code', 
+                'id_product_madkting'
+            ]).search([('is_storable', '=', True), ('default_code', '!=', False)])
+
+        if not product_ids:
+            user_id = self.env.user.id
+            logger.info(f"No products found, User: {user_id}, Company Processed: {company_id}")
+            return False
+        
+        # En esta parte como son webhooks se va a enviar tambien incluidas las ubicaciones de stock de canales
+        location_ids = self.env['product.product']._get_location_ids(config, with_channels=True)
+        stock_data = self.env['product.product'].get_stock_products(
+            products=product_ids,
+            location_ids=location_ids,
+            company_id=company_id
+        )
+        product_id = None
+        batchsize = config.webhook_product_batchsize if config.webhook_product_batchsize > 0 else 20
+        
+        wh_records = self.env["yuju.webhook.record"]
+        for product_data in self.env['product.product'].split_into_chunks(stock_data, batchsize):
+                
+            if batchsize == 1 and len(product_data) == 1:
+                product_id = product_data[0].get("product_id")
+
+            wh_records.prepare_webhook_cron(
+                webhook_body=product_data, 
+                company_id=company_id, 
+                type_webhook='stock', 
+                auto_send=False,
+                product_id=product_id
+                )
+
+        logger.info(f"Total processed: {len(product_ids.ids)}, Company Processed: {company_id}")
+        record.message = f"Total processed: {len(product_ids.ids)}"
+        record.updated_at = datetime.now()
+        return
     
 class WebhookRecords(models.Model):
 
@@ -261,6 +317,7 @@ class WebhookRecords(models.Model):
     url = fields.Text("URL Webhook")
     message = fields.Text("Mensaje")
     state = fields.Selection([("draft", "Pendiente"), ("done", "Realizado"), ("error", "Error")], string="Status")
+    total_products = fields.Integer("Total Productos", default=0)
 
     # @api.model
     # def prepare_webhook(self, product, company_id, id_shop=None):
@@ -406,6 +463,7 @@ class WebhookRecords(models.Model):
         domain = [
             ('hook_type', '=', type_webhook),
             ('active', '=', True),
+            ('url', '!=', False),
             ('company_id', '=', company_id)
         ]
 
@@ -498,13 +556,15 @@ class WebhookRecords(models.Model):
                     "event": event,
                     "data": json.dumps(webhook_body),
                     "url": url,
-                    "state": "draft"
+                    "state": "draft",
+                    "total_products": 1
                 })
             else:            
                 wh_record[-1].write({
                     "state": "draft",
                     "date_webhook": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "data": json.dumps(webhook_body)
+                    "data": json.dumps(webhook_body),
+                    "total_products": 1
                 })
         else:
             wh_record = self.create({
@@ -513,7 +573,8 @@ class WebhookRecords(models.Model):
                 "event": event,
                 "data": json.dumps(webhook_body),
                 "url": url,
-                "state": "draft"
+                "state": "draft",
+                "total_products": len(webhook_body) if isinstance(webhook_body, list) else 0
             })
         
         return wh_record

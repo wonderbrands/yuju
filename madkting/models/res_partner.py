@@ -109,7 +109,9 @@ class ResPartner(models.Model):
         company_id = None
         if customer_data.get('company_id'):
             company_id = customer_data.get('company_id')
-
+        
+        warnings = list()
+        new_customer_data = {}
         config = self.env['madkting.config'].get_config(company_id)
 
         defaults = {
@@ -121,22 +123,41 @@ class ResPartner(models.Model):
             'color': 0
         }
         customer_data.update(defaults)
-        # partners = {
-        #     'delivery': customer_data.pop('shipping_address', dict()),
-        #     'invoice': customer_data.pop('billing_address', dict())
-        # }
-        
+        partner_address = {
+            'delivery': customer_data.pop('shipping_address', dict()),
+            'invoice': customer_data.pop('billing_address', dict())
+        }
+        logger.debug(partner_address)
 
         if hasattr(self, 'partner_gid'):
             defaults['partner_gid'] = 0
 
         partner_exist = False
         partner_found = None
-        if config and config.validate_partner_exists and customer_data.get('vat'):
-            vat_id = customer_data.get('vat')
-            partner_found = self._search_partner_by_vat(company_id, vat_id, partner_type='contact')
-            if partner_found and partner_found.id:
-                partner_exist = True
+        if config and config.validate_partner_exists:
+            if customer_data.get('vat'):
+                vat_id = customer_data.get('vat')
+                partner_found = self._search_partner_by_vat(company_id, vat_id, partner_type='contact')
+                if partner_found and partner_found.id:
+                    partner_exist = True
+                else:
+                    partner_invoice_found = self._search_partner_by_vat(company_id, vat_id, partner_type='invoice')
+                    if partner_invoice_found and partner_invoice_found.parent_id:
+                        partner_exist = True
+                        partner_found = partner_invoice_found.parent_id
+
+            elif customer_data.get("name") and customer_data.get("street"):
+                logger.info(f"Searching partner by name {customer_data.get('name')} and street {customer_data.get('street')}")
+                domain = [
+                    ('name', '=', customer_data.get('name')),
+                    ('street', '=', customer_data.get('street')),
+                    ('type', '=', "contact"),
+                    ('parent_id', '=', False),
+                ]
+                logger.debug(f"Search partner with domain {domain}")
+                partner_found = self.env['res.partner'].search(domain, limit=1)
+                if partner_found and partner_found.id:
+                    partner_exist = True
 
         if partner_exist:
             new_customer = partner_found
@@ -158,14 +179,32 @@ class ResPartner(models.Model):
                     code='create_costumer_error',
                     description='Error trying to create new costumer: {}'.format(ex)
                 )
-        warnings = list()
+
+        if new_customer and new_customer.id:
+            new_customer_id = new_customer.id
+            new_customer_data['id'] = new_customer_id
+            delivery_address_id = None
+            invoice_address_id = None
+
+            if not partner_exist and config and config.order_detail_enabled:
+                # New customer created
+                new_customer.message_post(body=f"New customer created {customer_data}")
+
+            if partner_address:
+                if partner_address.get("delivery"):
+                    res_delivery_address = self.add_address(new_customer_id, "delivery", partner_address["delivery"])
+                    if res_delivery_address.get("success") and res_delivery_address.get("data"):
+                        if res_delivery_address["data"].get("id"):
+                            delivery_address_id = res_delivery_address["data"]["id"]
+                            new_customer_data["delivery_address_id"] = delivery_address_id
+
+                if partner_address.get("invoice"):
+                    res_invoice_address = self.add_address(new_customer_id, "invoice", partner_address["invoice"])
+                    if res_invoice_address.get("success") and res_invoice_address.get("data"):
+                        if res_invoice_address["data"].get("id"):
+                            invoice_address_id = res_invoice_address["data"]["id"]
+                            new_customer_data["invoice_address_id"] = invoice_address_id
         
-        remove_fields = ['image', 'image_medium', 'image_small', 'image_1920',
-                         'image_1024', 'image_512', 'image_256', 'image_128']
-        new_customer_data = new_customer.copy_data()[0]
-        new_customer_data['id'] = new_customer.id
-        for field in remove_fields:
-            new_customer_data.pop(field, None)
         return results.success_result(data=new_customer_data, warnings=warnings)
 
     @api.model
@@ -233,7 +272,7 @@ class ResPartner(models.Model):
             logger.debug("## ADDRESS FOUND ADDED ##")
             logger.debug(new_address)
             data = {'id': new_address.id}
-            self._update_parent_company_name(config, parent_customer, new_address)
+            # self._update_parent_company_name(config, parent_customer, new_address)
             return results.success_result(data=data)
         else:
             logger.debug(f"CREATE ADDRESS {address}")
@@ -273,7 +312,9 @@ class ResPartner(models.Model):
                 logger.debug("## NEW ADDRESS ADDED ##")
                 logger.debug(new_address)
                 data = {'id': new_address.id}
-                self._update_parent_company_name(config, parent_customer, new_address)
+                # self._update_parent_company_name(config, parent_customer, new_address)
+                if config and config.order_detail_enabled:
+                    new_address.message_post(body=f"New address created {address}")
                 return results.success_result(data=data)
 
     def _get_city_id(self, city_name, state_id, country_id):
@@ -287,7 +328,7 @@ class ResPartner(models.Model):
         city_name = city_name.strip()
         try:
             city = self.env['res.city'].search([
-                ('name', '=', city_name), 
+                ('name', '=ilike', city_name), 
                 ('state_id', '=', state_id), 
                 ('country_id', '=', country_id)
                 ], limit=1)

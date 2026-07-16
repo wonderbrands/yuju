@@ -252,7 +252,10 @@ class ProductProduct(models.Model):
             #     variation_data.update({"type" : product_type_for_kits})
             # else:
             if "type" in variation_data:
-                variation_data.pop("type")          
+                variation_data.pop("type")
+
+            if is_combo and config and not config.product_tracking_for_kits:
+                variation_data['is_storable'] = False
 
         res = super(ProductProduct, self).create_variation(variation_data, id_shop)
 
@@ -353,6 +356,9 @@ class ProductTemplate(models.Model):
         if 'type' in product_data and product_data['type'] == 'product':
             product_data['type'] = 'consu'
             product_data['is_storable'] = True
+
+            if is_combo and config and not config.product_tracking_for_kits:
+                product_data['is_storable'] = False
     
         res = super(ProductTemplate, self).mdk_create(product_data, id_shop)
 

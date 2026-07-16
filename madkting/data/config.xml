@@ -1,0 +1,10 @@
+<odoo>
+    <data noupdate="1">
+
+        <record id="madkting_config" model="madkting.config">
+            <field name="service_url">https://internal.yuju.io/odoo</field>
+        </record>
+
+    </data>
+</odoo>
+

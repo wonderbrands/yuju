@@ -515,6 +515,8 @@ class SaleOrder(models.Model):
                 # qty_in_branch = self.env['stock.quant']._get_available_quantity(product, location)
                 logger.info(f"Quantity for: {qty_in_branch}")
                 location_stock = f'{location_stock} Location: {location.name}, Stock: {qty_in_branch}, '
+                if qty_in_branch < 0:
+                    qty_in_branch = 0
                 if qty_in_branch:
                     total += int(qty_in_branch)            
             logger.info(f"Total: {total}")
@@ -528,6 +530,9 @@ class SaleOrder(models.Model):
         # qty_in_branch = self.env['stock.quant']._get_available_quantity(product, location)
         qty_in_branch = product.with_context({'location' : location.id}).free_qty
         logger.info(f"QTY IN BRANCH: {qty_in_branch}")
+
+        if qty_in_branch < 0:
+            qty_in_branch = 0
 
         if qty_in_branch:
             total += int(qty_in_branch)

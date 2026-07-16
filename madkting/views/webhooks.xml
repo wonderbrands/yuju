@@ -13,6 +13,7 @@
           <field name="date_response_webhook"/>
           <field name="company_id"/>
           <!-- <field name="url"/> -->
+          <field name="total_products"/>
           <field name="event"/>
           <field name="state"/>
         </list>
@@ -24,7 +25,7 @@
       <field name="model">yuju.webhook.record</field>
       <field name="type">form</field>
       <field name="arch" type="xml">
-        <form string="Webhooks" >
+        <form string="Webhooks" edit="false" create="false" >
           <header>
             <button name="send_webhook" type="object" string="Send Webhook" class="oe_highlight" groups="madkting.madkting_api_group"/>
             <field name="state" widget="statusbar"/>
@@ -35,6 +36,7 @@
               <field name="company_id"/>
               <field name="event"/>
               <field name="url"/>
+              <field name="total_products"/>
             </group>
             <group>
               <field name="date_webhook"/>

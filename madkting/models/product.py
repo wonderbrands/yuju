@@ -61,7 +61,7 @@ class ProductProduct(models.Model):
                                  'standard_price': (float, int),
                                  'attributes': dict,
                                  'type' : str,
-                                #  'detailed_type' : str,
+                                 'weight': (float, int),
                                  'id_product_madkting': (int, str)}
 
     def split_into_chunks(
@@ -80,30 +80,32 @@ class ProductProduct(models.Model):
             next_size = i + chunks_size
             yield to_split[i:next_size]
 
-    def _get_product_stock(self, product, location_ids, company_id):
-        locations = {}
-        stock_product = 0
+    # def _get_product_stock(self, product, location_ids, company_id):
+    #     locations = {}
+    #     stock_product = 0
 
-        for location_id in location_ids:
-            try:
-                qty_in_branch = product.with_context({"location" : location_id}).free_qty
-                locations.update({
-                    str(location_id) : qty_in_branch
-                })
-                stock_product += qty_in_branch
-            except Exception as e:
-                logger.exception("Error getting product stock")
-                pass
+    #     for location_id in location_ids:
+    #         try:
+    #             qty_in_branch = product.with_context({"location" : location_id}).free_qty
+    #             if qty_in_branch < 0:
+    #                 qty_in_branch = 0
+    #             locations.update({
+    #                 str(location_id) : qty_in_branch
+    #             })
+    #             stock_product += qty_in_branch
+    #         except Exception as e:
+    #             logger.exception("Error getting product stock")
+    #             pass
 
-        stock_data = {
-            "product_id" : product.id,
-            "company_id" : company_id,
-            "default_code" : product.default_code,
-            "stock" : stock_product,
-            "quantities": locations
-        }
+    #     stock_data = {
+    #         "product_id" : product.id,
+    #         "company_id" : company_id,
+    #         "default_code" : product.default_code,
+    #         "stock" : stock_product,
+    #         "quantities": locations
+    #     }
         
-        return stock_data, locations
+    #     return stock_data, locations
     
     def _get_stock_products(self, products, location_ids, company_id):
         result_data = []
@@ -124,6 +126,8 @@ class ProductProduct(models.Model):
             for location_id in location_ids:
                 try:
                     qty_in_branch = product.with_context({"location" : location_id}).free_qty
+                    if qty_in_branch < 0:
+                        qty_in_branch = 0
                     if product.default_code == "REFINED":
                         logger.info("REFINED")
                         logger.info(type(location_id))
@@ -378,7 +382,7 @@ class ProductProduct(models.Model):
         return results.success_result(product_data)
     
     def schedule_send_webhook(self):
-        config_ids = self.env['madkting.config'].search([])
+        config_ids = self.env['madkting.config'].search([('webhook_stock_enabled', '=', True), ('stock_source_multi', '!=', False)])
         for config in config_ids:
             if config.webhook_auto_send_enabled:
                 logger.debug(f"Auto send enabled, skipping scheduled send {config.company_id.id}")
@@ -438,13 +442,13 @@ class ProductProduct(models.Model):
 
         return True
 
-    def show_qty(self):
-        qty_available = self.with_context({'location' : 8}).qty_available
-        free_qty = self.with_context({'location' : 8}).free_qty
-        post_message = f"Qty {qty_available}."
-        post_message2 = f"Free Qty {free_qty}."
-        logger.debug(f"## QTY IN BRANCH: {post_message}")
-        logger.debug(f"## QTY IN BRANCH: {post_message2}")
+    # def show_qty(self):
+    #     qty_available = self.with_context({'location' : 8}).qty_available
+    #     free_qty = self.with_context({'location' : 8}).free_qty
+    #     post_message = f"Qty {qty_available}."
+    #     post_message2 = f"Free Qty {free_qty}."
+    #     logger.debug(f"## QTY IN BRANCH: {post_message}")
+    #     logger.debug(f"## QTY IN BRANCH: {post_message2}")
 
     def send_webhook_action(self, auto_send=True, config=None):
         """
@@ -496,6 +500,8 @@ class ProductProduct(models.Model):
         for location_id in locations.ids:
             try:
                 qty_in_branch = self.with_context({"location" : location_id}).free_qty
+                if qty_in_branch < 0:
+                    qty_in_branch = 0
                 stock_data['quantities'].update({
                     str(location_id) : qty_in_branch
                 })

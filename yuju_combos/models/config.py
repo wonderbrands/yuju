@@ -21,3 +21,4 @@ class MadktingConfig(models.Model):
     product_type_for_kits = fields.Selection(
         [('consu', 'Consumible')], 
         string='Tipo de producto para combos', default='consu')
+    product_tracking_for_kits = fields.Boolean('Seguimiento de producto para combos', default=True)

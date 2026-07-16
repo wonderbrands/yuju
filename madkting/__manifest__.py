@@ -16,7 +16,7 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '18.0.2.6.7',
+    'version': '18.0.2.8.3',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
@@ -31,6 +31,9 @@
         'security/security.xml',
         'security/ir.model.access.csv',
         'data/cron_rule.xml',
+        'data/config.xml',
+        'data/webhook.xml',
+        'data/cron_webhook_all.xml',
         'views/config.xml',
         'views/mappings.xml',
         'views/webhooks.xml',
@@ -57,6 +60,21 @@
         "views/**/*",  # exclude all files in a folder hierarchy recursively
     ]
 }
+
+# Version 2.8.3
+# Agrega detalle customer and address creation
+
+# Version 2.8.2
+# Actualiza busqueda por RUT en direccion de factura
+
+# Version 2.8.1
+# Agrega nuevo tipo de campo en mapeos
+
+# Version 2.8.0
+# Agrega funcion CRON para actualizar stock de productos x dia
+
+# Version 2.7.0
+# Agrega valores por default en config
 
 # Version 2.6.7
 # Agrupar Webhooks

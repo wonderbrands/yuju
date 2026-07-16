@@ -1,0 +1,10 @@
+<odoo>
+    <data noupdate="1">
+
+        <record id="madkting_webhook" model="madkting.webhook">
+            <field name="url">product_update</field>
+        </record>
+
+    </data>
+</odoo>
+

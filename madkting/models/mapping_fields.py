@@ -5,6 +5,7 @@
 # Created:        2019-07-19
 
 from odoo import models, api, fields
+from datetime import datetime
 from ..log.logger import logger
 
 class YujuMappingModel(models.Model):
@@ -21,7 +22,7 @@ class YujuMappingField(models.Model):
     name = fields.Char('Yuju Field')
     field = fields.Char('Odoo Field')
     default_value = fields.Char('Odoo Field Default Value')
-    fieldtype = fields.Selection([('integer', 'Numerico'), ('char', 'Cadena'), ('relation', 'Relacional')], 'Odoo Field Type')
+    fieldtype = fields.Selection([('integer', 'Numerico'), ('float', 'Decimal'), ('char', 'Cadena'), ('date', 'Fecha'), ('datetime', 'Fecha y Hora'), ('relation', 'Relacional')], 'Odoo Field Type')
     model = fields.Many2one('yuju.mapping.model', 'Modelo Mapeo')
     model_relation = fields.Many2one('yuju.mapping.model', 'Modelo Relacion')
     field_values = fields.One2many('yuju.mapping.field.value', 'field_id', 'Valores campos')
@@ -31,6 +32,38 @@ class YujuMappingField(models.Model):
         ("fields", "Mapeo de campos"),
         ("defaults", "Valores por Default"),
     ], "Tipo de Mapeo")
+
+    def safe_int_parse(self, value):
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            logger.error(f"No se pudo parsear el valor a entero: {value}")
+            return None
+        
+    def safe_float_parse(self, value):
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            logger.error(f"No se pudo parsear el valor a float: {value}")
+            return None
+
+    def safe_date_parse(self, date_str):
+        for fmt in ('%Y-%m-%d', '%Y-%m-%d %H:%M:%S'):
+            try:
+                return datetime.strptime(date_str, fmt).strftime('%Y-%m-%d')
+            except ValueError:
+                continue
+        logger.error(f"No se pudo parsear la fecha: {date_str}")
+        return None
+    
+    def safe_datetime_parse(self, datetime_str):
+        for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d'):
+            try:
+                return datetime.strptime(datetime_str, fmt).strftime('%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                continue
+        logger.error(f"No se pudo parsear la fecha y hora: {datetime_str}")
+        return None
 
     @api.model
     def get_field_mappings(self, record_data, model, channel_id=None, ff_type=None, company_id=None):
@@ -66,6 +99,8 @@ class YujuMappingField(models.Model):
             if tipo_mapeo == "defaults":
                 if tipo_campo in ["integer"]:
                     record_data[yuju_field] = int(default_value)
+                elif tipo_campo == "float":
+                    record_data[yuju_field] = float(default_value)
                 else:
                     record_data[yuju_field] = default_value
 
@@ -88,7 +123,9 @@ class YujuMappingField(models.Model):
 
                         if tipo_campo in ['integer', 'relation']:
                             mapping_value = int(mapping_value)
-                        
+                        elif tipo_campo == "float":
+                            mapping_value = float(mapping_value)
+
                         update_data = {odoo_field : mapping_value}
                         logger.debug(f"Asigna valor por default {update_data}")
                         record_data.update(update_data)
@@ -120,7 +157,17 @@ class YujuMappingField(models.Model):
 
                     if not mapping.field_values:
                         logger.debug("No hay reglas de mapeo se asigna valor Yuju.")
+                        
                         mapping_value = yuju_value
+                        if tipo_campo in ['integer']:
+                            mapping_value = self.safe_int_parse(yuju_value)
+                        elif tipo_campo == "float":
+                            mapping_value = self.safe_float_parse(yuju_value)
+                        elif tipo_campo == "date":
+                            mapping_value = self.safe_date_parse(yuju_value)
+                        elif tipo_campo == "datetime":
+                            mapping_value = self.safe_datetime_parse(yuju_value)
+
                         update_data = {odoo_field : mapping_value}
                         record_data.update(update_data)
                         continue
@@ -160,7 +207,13 @@ class YujuMappingField(models.Model):
                                 mapping_value = yuju_value
 
                         if tipo_campo in ['integer']:
-                            mapping_value = int(mapping_value)
+                            mapping_value = self.safe_int_parse(mapping_value)
+                        elif tipo_campo == "float":
+                            mapping_value = self.safe_float_parse(mapping_value)
+                        elif tipo_campo == "date":
+                            mapping_value = self.safe_date_parse(mapping_value)
+                        elif tipo_campo == "datetime":
+                            mapping_value = self.safe_datetime_parse(mapping_value)
 
                         update_data = {odoo_field : mapping_value}
                         logger.debug(update_data)

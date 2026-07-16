@@ -55,7 +55,9 @@ class MadktingStockMoveListener(Component):
             return
 
         record_state = getattr(record, 'state', None)
-        if record_state in ['assigned', 'done', 'cancel']:
+        stock_move_status = config.webhook_stock_move_status or "waiting,confirmed,assigned,done,cancel"
+
+        if record_state in stock_move_status.split(','):
 
             # if config.webhook_stock_cron_enabled:
             #     if not record.product_id.webhook_pending:

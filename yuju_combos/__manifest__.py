@@ -13,7 +13,7 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '18.0.1.0.0',
+    'version': '18.0.1.0.1',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
@@ -47,5 +47,6 @@
     ]
 }
 
+# Version 1.0.1 - Agrega validación de tracking de producto para combos
 # Version 0.1.0 - Fix combox elimina listas de materiales anteriores
 

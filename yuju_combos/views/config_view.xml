@@ -15,6 +15,7 @@
                                 <field name="search_kit_by_sku" />
                                 <!-- <field name="update_product_type_kits" />
                                 <field name="product_type_for_kits" /> -->
+                                <field name="product_tracking_for_kits" />
                             </group>
                             <group>
                             </group>

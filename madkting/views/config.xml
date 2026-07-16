@@ -47,9 +47,10 @@
                   <field name="webhook_price_enabled"/>
                   <!-- <field name="validate_price_webhook_enabled"/> -->
                   <field name="default_pricelist"/>
-                  <!-- <field name="order_detail_enabled"/> -->
+                  <field name="order_detail_enabled"/>
                   <!-- <field name="log_enabled"/> -->
                   <!-- <field name="webhook_detail_enabled"/> -->
+                  <field name="webhook_stock_move_status"/>
                 </group>
                 <group>                  
                   <field name="product_shared_catalog_enabled" />
