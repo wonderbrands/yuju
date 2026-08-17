@@ -40,10 +40,17 @@ class PricelistItem(models.Model):
             for item in res:
                 if item.product_id:
                     item.product_id.webhook_price_pending = True
+                    item.product_id.price_last_update = fields.Datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 elif item.product_tmpl_id:
                     products = self.env['product.product'].search([('product_tmpl_id', '=', item.product_tmpl_id.id)])
                     for p in products:
                         p.webhook_price_pending = True
+                        p.price_last_update = fields.Datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                else:
+                    _logger.warning("Pricelist item %s has no product_id or product_tmpl_id.", item.id)
+                    _logger.warning("Update all products")
+                    products = self.env['product.product'].search([("webhook_price_pending", "=", False), ("default_code", "!=", False), ("is_storable", "=", True)])
+                    products.write({'webhook_price_pending': True, 'price_last_update': fields.Datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
         return res
 
     def write(self, vals):
@@ -63,10 +70,18 @@ class PricelistItem(models.Model):
         for item in self:
             if item.product_id:
                 item.product_id.webhook_price_pending = True
+                item.product_id.price_last_update = fields.Datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             elif item.product_tmpl_id:
                 products = self.env['product.product'].search([('product_tmpl_id', '=', item.product_tmpl_id.id)])
                 for p in products:
                     p.webhook_price_pending = True
+                    p.price_last_update = fields.Datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                _logger.warning("Pricelist item %s has no product_id or product_tmpl_id.", item.id)
+                _logger.warning("Update all products")
+                products = self.env['product.product'].search([("webhook_price_pending", "=", False), ("default_code", "!=", False), ("is_storable", "=", True)])
+                products.write({'webhook_price_pending': True, 'price_last_update': fields.Datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
+
         return res
     
 

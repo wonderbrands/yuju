@@ -16,15 +16,15 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '18.0.2.8.3',
+    'version': '18.0.2.8.6',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
     'depends': [
-        'base',
+        # 'base',
         'sale_management',
         'stock',
-        'component_event'
+        # 'component_event'
     ],
     # always loaded
     'data': [
@@ -60,6 +60,15 @@
         "views/**/*",  # exclude all files in a folder hierarchy recursively
     ]
 }
+
+# Version 2.8.6
+# Quita dependencia cachetools
+
+# Version 2.8.5
+# Fix folio sin serie
+
+# Version 2.8.4
+# Actualiza flujo webhooks precio
 
 # Version 2.8.3
 # Agrega detalle customer and address creation

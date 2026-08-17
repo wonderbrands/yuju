@@ -215,35 +215,37 @@ class MadktingWebhook(models.Model):
                 user_company_id = self.env.user.company_id.id
                 rec.message = f"No products found, User: {user_id}, Company User: {user_company_id}, Company Processed: {company_id}"
                 return False
-            
-            # En esta parte como son webhooks se va a enviar tambien incluidas las ubicaciones de stock de canales
-            location_ids = self.env['product.product']._get_location_ids(config, with_channels=True)
-            stock_data = self.env['product.product'].get_stock_products(
-                products=product_ids,
-                location_ids=location_ids,
-                company_id=company_id
-            )
-            product_id = None
-            batchsize = config.webhook_product_batchsize if config.webhook_product_batchsize > 0 else 20
-            
-            wh_records = self.env["yuju.webhook.record"]
-            for product_data in self.env['product.product'].split_into_chunks(stock_data, batchsize):
-                # product_data = self.process_webhook_chunk(product_ids=prod_ids, config=config, company_id=company_id, location_ids=location_ids)
-                auto_send = config.webhook_auto_send_enabled
-            
-                if batchsize == 1 and len(product_data) == 1:
-                    product_id = product_data[0].get("product_id")
 
-                wh_records.prepare_webhook_cron(
-                    webhook_body=product_data, 
-                    company_id=company_id, 
-                    type_webhook='stock', 
-                    auto_send=auto_send,
-                    product_id=product_id
-                    )
+            if rec.hook_type == 'stock':
+            
+                # En esta parte como son webhooks se va a enviar tambien incluidas las ubicaciones de stock de canales
+                location_ids = self.env['product.product']._get_location_ids(config, with_channels=True)
+                stock_data = self.env['product.product'].get_stock_products(
+                    products=product_ids,
+                    location_ids=location_ids,
+                    company_id=company_id
+                )
+                product_id = None
+                batchsize = config.webhook_product_batchsize if config.webhook_product_batchsize > 0 else 20
+                
+                wh_records = self.env["yuju.webhook.record"]
+                for product_data in self.env['product.product'].split_into_chunks(stock_data, batchsize):
+                    # product_data = self.process_webhook_chunk(product_ids=prod_ids, config=config, company_id=company_id, location_ids=location_ids)
+                    auto_send = config.webhook_auto_send_enabled
+                
+                    if batchsize == 1 and len(product_data) == 1:
+                        product_id = product_data[0].get("product_id")
 
-            # for product in product_ids:                
-            #     wh_records.prepare_webhook(product, company_id, rec.id_shop)
+                    wh_records.prepare_webhook_cron(
+                        webhook_body=product_data, 
+                        company_id=company_id, 
+                        type_webhook='stock', 
+                        auto_send=auto_send,
+                        product_id=product_id
+                        )
+
+            elif rec.hook_type == 'price':
+                product_ids.write({'webhook_price_pending': True, 'price_last_update': fields.Datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
 
             rec.message = f"Total processed: {len(product_ids.ids)}"
             rec.updated_at = datetime.now()
@@ -474,7 +476,10 @@ class WebhookRecords(models.Model):
             TODO: if the webhook fails store it into a database for retry implementation
             """
             url_webhook = f"{config.service_url}/{webhook.url}?id_shop={webhook.id_shop}&version=multi&event={type_webhook}_update"
-            wh_record = self.create_webhook_record(product_id=product_id, company_id=company_id, webhook_body=webhook_body, url=url_webhook)
+            event = "stock_update"
+            if type_webhook == "price":
+                event = "price_update"
+            wh_record = self.create_webhook_record(product_id=product_id, company_id=company_id, webhook_body=webhook_body, url=url_webhook, event=event)
             if wh_record and auto_send:
                 wh_record.send_webhook()
 

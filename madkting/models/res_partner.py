@@ -137,10 +137,12 @@ class ResPartner(models.Model):
         if config and config.validate_partner_exists:
             if customer_data.get('vat'):
                 vat_id = customer_data.get('vat')
+                logger.info(f"Search partner by VAT {vat_id} in contact records")
                 partner_found = self._search_partner_by_vat(company_id, vat_id, partner_type='contact')
                 if partner_found and partner_found.id:
                     partner_exist = True
                 else:
+                    logger.info(f"Search partner by VAT {vat_id} in invoice records")
                     partner_invoice_found = self._search_partner_by_vat(company_id, vat_id, partner_type='invoice')
                     if partner_invoice_found and partner_invoice_found.parent_id:
                         partner_exist = True

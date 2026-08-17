@@ -69,7 +69,7 @@ class SaleOrder(models.Model):
     yuju_due_date = fields.Char("Fecha límite de despacho")
     
     yuju_invoice_retries = fields.Integer("Intentos de Facturación", default=0)
-    webhook_last_update = fields.Datetime("Fecha ultimo envio", default=fields.Datetime.now)
+    price_last_update = fields.Datetime("Fecha ultimo envio", default=fields.Datetime.now)
 
     def init(self):
         # Índice para búsquedas frecuentes por channel_id y channel_order_id
@@ -1103,12 +1103,12 @@ class SaleOrder(models.Model):
     #                 ('company_id', '=', company_id), 
     #                 ('yuju_invoice_status', '!=', 'done'), 
     #                 ('yuju_invoice_retries', '<=', invoice_max_retries),
-    #                 ('webhook_last_update', '<', date_ini),
+    #                 ('price_last_update', '<', date_ini),
     #                 ('invoice_ids', '!=', False),
     #                 ('date_order', '>=', before_date),
     #             ]
     #             logger.info(f"Processing config {company_id}, domain: {domain}")
-    #             orders = self.search(domain, order="webhook_last_update asc", limit=invoice_max_records)
+    #             orders = self.search(domain, order="price_last_update asc", limit=invoice_max_records)
 
     #             if not orders:
     #                 logger.info(f"No pending invoices webhooks, company: {company_id}")
@@ -1119,7 +1119,7 @@ class SaleOrder(models.Model):
     #                 logger.info(f"Processing order {order.id}")
     #                 try:
     #                     order.yuju_invoice_retries = order.yuju_invoice_retries + 1
-    #                     order.webhook_last_update = fields.Datetime.now()
+    #                     order.price_last_update = fields.Datetime.now()
     #                     order.message_post(body=f"Processing invoice retry for order, attempt: {order.yuju_invoice_retries}")
     #                     order.add_order_message("invoice", company_id, force=True, config=config)
     #                 except Exception as e:
@@ -1572,10 +1572,13 @@ class SaleOrder(models.Model):
             if len(name_pieces) > 1:
                 idx_folio = len(name_pieces) - 1
                 folio = name_pieces[idx_folio]
+
+            elif len(name_pieces) == 1:
+                folio = name_pieces[0]
+
+            if folio:
                 folio = folio.strip()
-                if config.invoice_prefix_id_folio:
-                    folio = f"{invoice.id}{folio}"
-                invoice_data["folio"] = int(folio)
+                invoice_data["folio"] = folio
 
             serie_invoice = config.invoice_serie
             serie_ticket = config.invoice_serie_ticket            

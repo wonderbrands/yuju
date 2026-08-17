@@ -23,7 +23,7 @@
             <field name="priority">5</field>
             <field name="user_id">2</field>
             <!-- <field name="doall">True</field> -->
-            <field name="active">False</field>
+            <field name="active">True</field>
             <field name="state">code</field>
             <field name="code">model.process_price_webhooks()</field>
         </record>

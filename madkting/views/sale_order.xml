@@ -51,7 +51,7 @@
                 <field name="yuju_shipping_status"/>
                 <field name="yuju_invoice_status"/>
                 <field name="yuju_invoice_retries"/>
-                <field name="webhook_last_update"/>
+                <field name="price_last_update"/>
                 <field name="yuju_invoice_doctype"/>
                 <field name="yuju_carrier"/>
                 <field name="yuju_payment_method" readonly="True"/>

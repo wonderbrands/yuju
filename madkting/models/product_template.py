@@ -4,7 +4,7 @@
 # Copyright:      (C) 2019 All rights reserved by Madkting
 # Created:        2019-04-17
 
-from odoo import models, api
+from odoo import models, api, fields
 from odoo import exceptions
 from collections import defaultdict
 from ..log.logger import logger
@@ -419,4 +419,5 @@ class ProductTemplate(models.Model):
                 products = self.env['product.product'].search([('product_tmpl_id', '=', product.id)])
                 for p in products:
                     p.webhook_price_pending = True
+                    p.price_last_update = fields.Datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         return res

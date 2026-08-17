@@ -21,6 +21,9 @@ _logger = logging.getLogger(__name__)
 class ProductProduct(models.Model):
     _inherit = "product.product"
 
+    def _get_default_datetime(self):
+        return fields.Datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+
     id_product_madkting = fields.Char('Id product madkting', size=50)
     tipo_producto_yuju = fields.Selection([('dropship', 'Dropship'), ('mto', 'MTO')],
                                             string='Tipo Ruta Producto', 
@@ -31,7 +34,8 @@ class ProductProduct(models.Model):
     webhook_pending = fields.Boolean('Webhook pending', default=False)
     webhook_price_pending = fields.Boolean('Webhook price pending', default=False)
     webhook_data = fields.Text('Webhook data', default='')
-    webhook_last_update = fields.Char('Fecha ultimo webhook', default='')
+    webhook_last_update = fields.Char('Fecha ultimo update', default="")
+    price_last_update = fields.Datetime('Fecha ultimo update precio', default=fields.Datetime.now)
 
     _sql_constraints = [('id_product_madkting_uniq', 'unique (id_product_madkting,active)',
                          'The relationship between products of madkting and odoo must be one to one!')]
@@ -288,7 +292,7 @@ class ProductProduct(models.Model):
     #             wh_records.prepare_webhook_cron(webhook_body=product_data, company_id=company_id, type_webhook='stock', auto_send=auto_send)
 
     #     if processed_webhooks:
-    #         product_ids.write({'webhook_pending': False, "webhook_last_update": fields.Datetime.now().strftime('%Y-%m-%d %H:%M:%S')})    
+    #         product_ids.write({'webhook_pending': False, "price_last_update": fields.Datetime.now().strftime('%Y-%m-%d %H:%M:%S')})    
         
     #     return results.success_result(product_data)
     
@@ -343,43 +347,32 @@ class ProductProduct(models.Model):
 
         if webhook_data:        
             wh_records = self.env["yuju.webhook.record"]
-            wh_records.prepare_webhook_cron(webhook_body=webhook_data, company_id=company_id, type_webhook='price', auto_send=True)        
+            wh_records.prepare_webhook_cron(webhook_body=webhook_data, company_id=company_id, type_webhook='price', auto_send=True)
+            product_ids.write({'webhook_price_pending': False})    
         return
     
     def process_price_webhooks(self):
         logger.info("## PREPARE PRICE WEBHOOKS ##")
         config_ids = self.env['madkting.config'].search([])
-        product_ids = self.search([('webhook_price_pending', '=', True)])
 
-        if not product_ids:
-            logger.info("No hay productos pendientes de webhook")
-            return results.success_result([])
-        
         batchsize = 20
-        product_data = []
-        processed_webhooks = False
         for config in config_ids:
-            
+
             if not config.webhook_price_enabled:
                 continue
+            
+            if config.webhook_product_batchsize:
+                batchsize = config.webhook_product_batchsize
 
-            if config.webhook_product_mapped:
-                product_record_ids = [product for product in product_ids if product.id_product_madkting]
-                if not product_record_ids:
-                    logger.info("No hay productos pendientes de webhook con id_product_madkting")
-                    continue
-            else:
-                product_record_ids = [product for product in product_ids]
+            product_ids = self.search([('webhook_price_pending', '=', True)], order="price_last_update asc", limit=batchsize)
+                
+            if not product_ids:
+                logger.info("No hay productos pendientes de webhook")
+                return results.success_result([])
 
-            processed_webhooks = True
-
-            for prod_ids in self.split_into_chunks(product_record_ids, batchsize):
-                self.update_price_webhook(prod_ids, config.company_id.id)
-
-        if processed_webhooks:
-            product_ids.write({'webhook_price_pending': False})
+            self.update_price_webhook(product_ids, config.company_id.id)
         
-        return results.success_result(product_data)
+        return results.success_result([])
     
     def schedule_send_webhook(self):
         config_ids = self.env['madkting.config'].search([('webhook_stock_enabled', '=', True), ('stock_source_multi', '!=', False)])

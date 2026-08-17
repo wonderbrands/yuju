@@ -12,10 +12,11 @@
               <group>
                 <field name="id_product_madkting" groups="madkting.madkting_api_group"/>
                 <field name="tipo_producto_yuju" groups="madkting.madkting_api_group"/>
+                <!-- <field name="webhook_pending" groups="madkting.madkting_api_group"/> -->
+                <!-- <field name="webhook_data" groups="madkting.madkting_api_group"/> -->
                 <field name="webhook_price_pending" groups="madkting.madkting_api_group"/>
-                <field name="webhook_pending" groups="madkting.madkting_api_group"/>
-                <field name="webhook_data" groups="madkting.madkting_api_group"/>
-                <field name="webhook_last_update" groups="madkting.madkting_api_group"/>
+                <!-- <field name="price_last_update" groups="madkting.madkting_api_group"/> -->
+                <field name="price_last_update" groups="madkting.madkting_api_group"/>
               </group>
               <group>
                 <group>
