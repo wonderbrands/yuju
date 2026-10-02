@@ -697,6 +697,11 @@ class SaleOrder(models.Model):
             return results.error_result(code='sale_config_error',
                                         description='No config found for this company')
 
+        if kwargs.get('order_data'):
+            update_order_data = kwargs.get("order_data")
+            logger.info(f"Processing internal update in deliver {update_order_data}")
+            self.update_order(order.id, update_order_data)
+
         if config.dropship_enabled and config.dropship_picking_type:
 
             for picking in order.picking_ids:

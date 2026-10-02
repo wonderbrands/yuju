@@ -16,7 +16,7 @@
     'email': "gerardo.lopez@yuju.io",
     'website': "https://yuju.io/",
     'category': 'Sales',
-    'version': '18.0.2.8.6',
+    'version': '18.0.2.8.7',
     'license': 'Other proprietary',
 
     # any module necessary for this one to work correctly
@@ -60,6 +60,9 @@
         "views/**/*",  # exclude all files in a folder hierarchy recursively
     ]
 }
+
+# Version 2.8.7
+# Update on deliver
 
 # Version 2.8.6
 # Quita dependencia cachetools

@@ -344,11 +344,11 @@ class ProductProduct(models.Model):
                 "price" : new_price,
             }
             webhook_data.append(price_data)
+            product.write({'webhook_price_pending': False})    
 
         if webhook_data:        
             wh_records = self.env["yuju.webhook.record"]
             wh_records.prepare_webhook_cron(webhook_body=webhook_data, company_id=company_id, type_webhook='price', auto_send=True)
-            product_ids.write({'webhook_price_pending': False})    
         return
     
     def process_price_webhooks(self):
