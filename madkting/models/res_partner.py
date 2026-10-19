@@ -213,6 +213,12 @@ class ResPartner(models.Model):
     def update_mapping_fields(self, customer_data, model='res.partner'):
         logger.debug("MAIN UPDATE MAPPING")
         customer_data = self.env['yuju.mapping.field'].get_field_mappings(record_data=customer_data, model=model)
+        if isinstance(customer_data, dict):
+            model_fields = self.env['res.partner']._fields
+            invalid_fields = [field for field in customer_data if field not in model_fields]
+            if invalid_fields:
+                logger.debug(f"Campos no disponibles en res.partner, se omiten: {invalid_fields}")
+                customer_data = {k: v for k, v in customer_data.items() if k in model_fields}
         return customer_data
 
     def _update_parent_company_name(self, config, parent_customer, partner_address):

@@ -1838,7 +1838,7 @@ class SaleOrder(models.Model):
                 return results.success_result()
 
     @api.model
-    def cancel_order(self, order_id):
+    def cancel_order(self, order_id, **kwargs):
         """
         :param order_id:
         :type order_id: int
@@ -1865,7 +1865,12 @@ class SaleOrder(models.Model):
         if not config:
             return results.error_result(code='sale_config_error',
                                         description='No config found for this company')
-        
+
+        if kwargs.get('order_data'):
+            update_order_data = kwargs.get("order_data")
+            logger.info(f"Processing internal update in deliver {update_order_data}")
+            self.update_order(sale_order.id, update_order_data)
+
         if sale_order.locked:
             try:
                 sale_order.action_unlock()
